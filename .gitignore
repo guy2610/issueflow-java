@@ -1,4 +1,3 @@
-Readme.md
 target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
@@ -235,3 +234,5 @@ buildNumber.properties
 .classpath
 
 # End of https://www.toptal.com/developers/gitignore/api/maven,java,intellij+all,eclipse
+.DS_Store
+**/.DS_Store
