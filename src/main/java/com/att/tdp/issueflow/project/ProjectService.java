@@ -60,7 +60,8 @@ public class ProjectService {
             project.setDescription(request.description());
         }
 
-        return ProjectResponse.from(project);
+        Project saved = projectRepository.saveAndFlush(project);
+        return ProjectResponse.from(saved);
     }
 
     @Transactional

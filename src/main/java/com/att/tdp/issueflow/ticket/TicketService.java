@@ -103,7 +103,8 @@ public class TicketService {
             ticket.setDueDate(request.dueDate());
         }
 
-        return TicketResponse.from(ticket);
+        Ticket saved = ticketRepository.saveAndFlush(ticket);
+        return TicketResponse.from(saved);
     }
 
     @Transactional
