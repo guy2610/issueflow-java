@@ -7,6 +7,9 @@ import com.att.tdp.issueflow.user.User;
 import com.att.tdp.issueflow.user.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.att.tdp.issueflow.audit.AuditAction;
+import com.att.tdp.issueflow.audit.AuditEntityType;
+import com.att.tdp.issueflow.audit.AuditLogService;
 
 import java.util.List;
 
@@ -16,15 +19,18 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final TicketService ticketService;
     private final UserService userService;
+    private final AuditLogService auditLogService;
 
     public CommentService(
             CommentRepository commentRepository,
             TicketService ticketService,
-            UserService userService
+            UserService userService,
+            AuditLogService auditLogService
     ) {
         this.commentRepository = commentRepository;
         this.ticketService = ticketService;
         this.userService = userService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -36,8 +42,16 @@ public class CommentService {
         comment.setTicket(ticket);
         comment.setAuthor(author);
         comment.setContent(request.content());
+        Comment saved = commentRepository.save(comment);
 
-        return CommentResponse.from(commentRepository.save(comment));
+        auditLogService.recordUserAction(
+                AuditAction.CREATE,
+                author.getId(),
+                AuditEntityType.COMMENT,
+                saved.getId(),
+                "Comment created"
+        );
+        return CommentResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -56,6 +70,15 @@ public class CommentService {
         comment.setContent(request.content());
 
         Comment saved = commentRepository.saveAndFlush(comment);
+
+        auditLogService.recordUserAction(
+                AuditAction.UPDATE,
+                comment.getAuthor().getId(),
+                AuditEntityType.COMMENT,
+                saved.getId(),
+                "Comment updated"
+        );
+
         return CommentResponse.from(saved);
     }
 
@@ -63,6 +86,13 @@ public class CommentService {
     public void deleteComment(Long commentId) {
         Comment comment = findCommentEntity(commentId);
         commentRepository.delete(comment);
+        auditLogService.recordUserAction(
+                AuditAction.DELETE,
+                comment.getAuthor().getId(),
+                AuditEntityType.COMMENT,
+                comment.getId(),
+                "Comment deleted"
+        );
     }
 
     public Comment findCommentEntity(Long commentId) {

@@ -8,6 +8,9 @@ import com.att.tdp.issueflow.user.User;
 import com.att.tdp.issueflow.user.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.att.tdp.issueflow.audit.AuditLogService;
+import com.att.tdp.issueflow.audit.AuditAction;
+import com.att.tdp.issueflow.audit.AuditEntityType;
 
 import java.util.List;
 
@@ -17,15 +20,18 @@ public class TicketService {
     private final TicketRepository ticketRepository;
     private final ProjectService projectService;
     private final UserService userService;
+    private final AuditLogService auditLogService;
 
     public TicketService(
             TicketRepository ticketRepository,
             ProjectService projectService,
-            UserService userService
+            UserService userService,
+            AuditLogService auditLogService
     ) {
         this.ticketRepository = ticketRepository;
         this.projectService = projectService;
         this.userService = userService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -46,8 +52,17 @@ public class TicketService {
         ticket.setProject(project);
         ticket.setAssignee(assignee);
         ticket.setDueDate(request.dueDate());
+        Ticket saved = ticketRepository.save(ticket);
 
-        return TicketResponse.from(ticketRepository.save(ticket));
+        auditLogService.recordUserAction(
+                AuditAction.CREATE,
+                saved.getAssignee() == null ? null : saved.getAssignee().getId(),
+                AuditEntityType.TICKET,
+                saved.getId(),
+                "Ticket created"
+        );
+
+        return TicketResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -104,6 +119,13 @@ public class TicketService {
         }
 
         Ticket saved = ticketRepository.saveAndFlush(ticket);
+        auditLogService.recordUserAction(
+                AuditAction.UPDATE,
+                saved.getAssignee() == null ? null : saved.getAssignee().getId(),
+                AuditEntityType.TICKET,
+                saved.getId(),
+                "Ticket updated"
+        );
         return TicketResponse.from(saved);
     }
 
@@ -111,6 +133,13 @@ public class TicketService {
     public void deleteTicket(Long id) {
         Ticket ticket = findActiveTicketEntity(id);
         ticket.softDelete();
+        auditLogService.recordUserAction(
+                AuditAction.DELETE,
+                ticket.getAssignee() == null ? null : ticket.getAssignee().getId(),
+                AuditEntityType.TICKET,
+                ticket.getId(),
+                "Ticket soft-deleted"
+        );
     }
 
     public Ticket findActiveTicketEntity(Long id) {

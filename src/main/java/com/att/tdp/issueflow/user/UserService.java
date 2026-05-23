@@ -5,6 +5,9 @@ import com.att.tdp.issueflow.common.error.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import com.att.tdp.issueflow.audit.AuditAction;
+import com.att.tdp.issueflow.audit.AuditEntityType;
+import com.att.tdp.issueflow.audit.AuditLogService;
 
 import java.util.List;
 
@@ -17,9 +20,16 @@ public class UserService {
 
     private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    private final AuditLogService auditLogService;
+
+    public UserService(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            AuditLogService auditLogService
+    ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -47,6 +57,12 @@ public class UserService {
         user.setPasswordHash(passwordEncoder.encode(rawPassword));
 
         User saved = userRepository.save(user);
+        auditLogService.recordSystemAction(
+                AuditAction.CREATE,
+                AuditEntityType.USER,
+                saved.getId(),
+                "User registered: " + saved.getUsername()
+        );
         return UserResponse.from(saved);
     }
 
@@ -73,6 +89,13 @@ public class UserService {
 
         user.setRole(request.role());
 
+        auditLogService.recordUserAction(
+                AuditAction.UPDATE,
+                id,
+                AuditEntityType.USER,
+                user.getId(),
+                "User updated"
+        );
         return UserResponse.from(user);
     }
 
@@ -80,6 +103,13 @@ public class UserService {
     public void deleteUser(Long id) {
         User user = findUserEntity(id);
         userRepository.delete(user);
+        auditLogService.recordUserAction(
+                AuditAction.DELETE,
+                id,
+                AuditEntityType.USER,
+                user.getId(),
+                "User deleted"
+        );
     }
 
     public User findUserEntity(Long id) {

@@ -6,6 +6,9 @@ import com.att.tdp.issueflow.user.User;
 import com.att.tdp.issueflow.user.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.att.tdp.issueflow.audit.AuditLogService;
+import com.att.tdp.issueflow.audit.AuditAction;
+import com.att.tdp.issueflow.audit.AuditEntityType;
 
 import java.util.List;
 
@@ -14,10 +17,12 @@ public class ProjectService {
 
     private final ProjectRepository projectRepository;
     private final UserService userService;
+    private final AuditLogService auditLogService;
 
-    public ProjectService(ProjectRepository projectRepository, UserService userService) {
+    public ProjectService(ProjectRepository projectRepository, UserService userService,AuditLogService auditLogService) {
         this.projectRepository = projectRepository;
         this.userService = userService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -28,8 +33,17 @@ public class ProjectService {
         project.setName(request.name());
         project.setDescription(request.description());
         project.setOwner(owner);
+        Project saved = projectRepository.save(project);
 
-        return ProjectResponse.from(projectRepository.save(project));
+        auditLogService.recordUserAction(
+                AuditAction.CREATE,
+                request.ownerId(),
+                AuditEntityType.PROJECT,
+                saved.getId(),
+                "Project created"
+        );
+
+        return ProjectResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -61,6 +75,13 @@ public class ProjectService {
         }
 
         Project saved = projectRepository.saveAndFlush(project);
+        auditLogService.recordUserAction(
+                AuditAction.UPDATE,
+                project.getOwner().getId(),
+                AuditEntityType.PROJECT,
+                project.getId(),
+                "Project updated"
+        );
         return ProjectResponse.from(saved);
     }
 
@@ -68,6 +89,13 @@ public class ProjectService {
     public void deleteProject(Long id) {
         Project project = findActiveProjectEntity(id);
         project.softDelete();
+        auditLogService.recordUserAction(
+                AuditAction.DELETE,
+                project.getOwner().getId(),
+                AuditEntityType.PROJECT,
+                project.getId(),
+                "Project soft-deleted"
+        );
     }
 
     public Project findActiveProjectEntity(Long id) {

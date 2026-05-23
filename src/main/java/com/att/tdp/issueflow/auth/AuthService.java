@@ -7,6 +7,9 @@ import com.att.tdp.issueflow.user.UserResponse;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.att.tdp.issueflow.audit.AuditAction;
+import com.att.tdp.issueflow.audit.AuditEntityType;
+import com.att.tdp.issueflow.audit.AuditLogService;
 
 @Service
 public class AuthService {
@@ -15,17 +18,20 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final TokenDenyListService tokenDenyListService;
+    private final AuditLogService auditLogService;
 
     public AuthService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            TokenDenyListService tokenDenyListService
+            TokenDenyListService tokenDenyListService,
+            AuditLogService auditLogService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.tokenDenyListService = tokenDenyListService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional(readOnly = true)
@@ -37,11 +43,25 @@ public class AuthService {
             throw new UnauthorizedException("Invalid username or password");
         }
 
+        auditLogService.recordUserAction(
+                AuditAction.LOGIN,
+                user.getId(),
+                AuditEntityType.AUTH,
+                user.getId(),
+                "User logged in"
+        );
+
         return LoginResponse.bearer(jwtService.generateToken(user));
     }
 
     public void logout(String token) {
         tokenDenyListService.deny(token);
+        auditLogService.recordSystemAction(
+                AuditAction.LOGOUT,
+                AuditEntityType.AUTH,
+                null,
+                "Token logged out"
+        );
     }
 
     public UserResponse me(User user) {
