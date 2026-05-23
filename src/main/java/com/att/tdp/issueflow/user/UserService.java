@@ -4,6 +4,7 @@ import com.att.tdp.issueflow.common.error.ConflictException;
 import com.att.tdp.issueflow.common.error.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 
@@ -14,8 +15,11 @@ public class UserService {
 
     private final UserRepository userRepository;
 
-    public UserService(UserRepository userRepository) {
+    private final PasswordEncoder passwordEncoder;
+
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
@@ -40,7 +44,7 @@ public class UserService {
 
         // Temporary plain placeholder until Spring Security password encoding is added.
         // We will replace this with BCrypt when implementing auth.
-        user.setPasswordHash(rawPassword);
+        user.setPasswordHash(passwordEncoder.encode(rawPassword));
 
         User saved = userRepository.save(user);
         return UserResponse.from(saved);
