@@ -4,6 +4,7 @@ import com.att.tdp.issueflow.user.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -14,12 +15,16 @@ import java.util.Date;
 @Service
 public class JwtService {
 
-    private static final String SECRET =
-            "issueflow-tdp-2026-local-development-secret-key-32-bytes-minimum";
+    private final SecretKey key;
+    private final long expirationSeconds;
 
-    private static final long EXPIRATION_SECONDS = 60 * 60 * 4;
-
-    private final SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
+    public JwtService(
+            @Value("${app.jwt.secret}") String secret,
+            @Value("${app.jwt.expiration-seconds}") long expirationSeconds
+    ) {
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.expirationSeconds = expirationSeconds;
+    }
 
     public String generateToken(User user) {
         Instant now = Instant.now();
@@ -29,7 +34,7 @@ public class JwtService {
                 .claim("userId", user.getId())
                 .claim("role", user.getRole().name())
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plusSeconds(EXPIRATION_SECONDS)))
+                .expiration(Date.from(now.plusSeconds(expirationSeconds)))
                 .signWith(key)
                 .compact();
     }
