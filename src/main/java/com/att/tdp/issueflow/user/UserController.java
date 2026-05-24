@@ -3,6 +3,8 @@ package com.att.tdp.issueflow.user;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import com.att.tdp.issueflow.comment.CommentResponse;
+import com.att.tdp.issueflow.mention.MentionService;
 
 import java.util.List;
 
@@ -11,11 +13,12 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final MentionService mentionService;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, MentionService mentionService) {
         this.userService = userService;
+        this.mentionService = mentionService;
     }
-
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public UserResponse createUser(@Valid @RequestBody CreateUserRequest request) {
@@ -44,5 +47,10 @@ public class UserController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteUser(@PathVariable Long userId) {
         userService.deleteUser(userId);
+    }
+
+    @GetMapping("/{userId}/mentions")
+    public List<CommentResponse> getMentions(@PathVariable Long userId) {
+        return mentionService.getCommentsMentioningUser(userId);
     }
 }

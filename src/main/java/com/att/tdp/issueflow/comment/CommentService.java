@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.att.tdp.issueflow.audit.AuditAction;
 import com.att.tdp.issueflow.audit.AuditEntityType;
 import com.att.tdp.issueflow.audit.AuditLogService;
+import com.att.tdp.issueflow.mention.MentionService;
 
 import java.util.List;
 
@@ -20,17 +21,20 @@ public class CommentService {
     private final TicketService ticketService;
     private final UserService userService;
     private final AuditLogService auditLogService;
+    private final MentionService mentionService;
 
     public CommentService(
             CommentRepository commentRepository,
             TicketService ticketService,
             UserService userService,
-            AuditLogService auditLogService
+            AuditLogService auditLogService,
+            MentionService mentionService
     ) {
         this.commentRepository = commentRepository;
         this.ticketService = ticketService;
         this.userService = userService;
         this.auditLogService = auditLogService;
+        this.mentionService = mentionService;
     }
 
     @Transactional
@@ -43,6 +47,7 @@ public class CommentService {
         comment.setAuthor(author);
         comment.setContent(request.content());
         Comment saved = commentRepository.save(comment);
+        mentionService.reevaluateMentions(saved);
 
         auditLogService.recordUserAction(
                 AuditAction.CREATE,
@@ -51,7 +56,7 @@ public class CommentService {
                 saved.getId(),
                 "Comment created"
         );
-        return CommentResponse.from(saved);
+        return CommentResponse.from(saved, mentionService.getMentionedUsers(saved.getId()));
     }
 
     @Transactional(readOnly = true)
@@ -60,7 +65,10 @@ public class CommentService {
 
         return commentRepository.findByTicketIdOrderByCreatedAtAsc(ticketId)
                 .stream()
-                .map(CommentResponse::from)
+                .map(comment -> CommentResponse.from(
+                        comment,
+                        mentionService.getMentionedUsers(comment.getId())
+                ))
                 .toList();
     }
 
@@ -79,12 +87,14 @@ public class CommentService {
                 "Comment updated"
         );
 
-        return CommentResponse.from(saved);
+        mentionService.reevaluateMentions(saved);
+        return CommentResponse.from(saved, mentionService.getMentionedUsers(saved.getId()));
     }
 
     @Transactional
     public void deleteComment(Long commentId) {
         Comment comment = findCommentEntity(commentId);
+        mentionService.deleteMentionsForComment(comment.getId());
         commentRepository.delete(comment);
         auditLogService.recordUserAction(
                 AuditAction.DELETE,
