@@ -195,6 +195,19 @@ We encourage you to use AI during the process. Document how you used the agent a
 Add the main and relevant prompts that show your interaction with the agents in a `prompts.md` file.
 
 ---
+## Additional Documentation
+
+This repository also includes:
+
+- `run.md` - exact setup, build, run, test, and smoke-test instructions.
+- `prompts.md` - AI usage summary and representative prompts.
+- `docs/requirements-traceability.md` - implementation status for the assignment requirements.
+- `docs/architecture-notes.md` - key architecture decisions, assumptions, and tradeoffs.
+
+The API table in this README was used as the implementation contract.
+
+---
+
 
 ## License
 
