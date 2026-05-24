@@ -15,6 +15,7 @@ import org.apache.commons.csv.CSVRecord;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import java.io.UncheckedIOException;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -141,7 +142,7 @@ public class TicketCsvService {
             );
 
             return new TicketImportResult(created, failed, errors);
-        } catch (IOException ex) {
+        } catch (IOException | UncheckedIOException ex) {
             throw new BadRequestException("Failed to read CSV file");
         }
     }

@@ -18,8 +18,7 @@ import java.util.regex.Pattern;
 @Service
 public class MentionService {
 
-    private static final Pattern MENTION_PATTERN = Pattern.compile("@([A-Za-z0-9_]+)");
-
+    private static final Pattern MENTION_PATTERN = Pattern.compile("@([A-Za-z0-9_.-]+)");
     private final MentionRepository mentionRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
