@@ -171,4 +171,37 @@ public class TicketService {
             );
         }
     }
+
+    @Transactional(readOnly = true)
+    public List<TicketResponse> getDeletedTicketsByProject(Long projectId) {
+        projectService.findActiveProjectEntity(projectId);
+
+        return ticketRepository.findByProjectIdAndDeletedAtIsNotNull(projectId)
+                .stream()
+                .map(TicketResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public TicketResponse restoreTicket(Long id) {
+        Ticket ticket = ticketRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Ticket not found: " + id));
+
+        if (!ticket.isDeleted()) {
+            return TicketResponse.from(ticket);
+        }
+
+        ticket.restore();
+        Ticket saved = ticketRepository.saveAndFlush(ticket);
+
+        auditLogService.recordUserAction(
+                AuditAction.RESTORE,
+                saved.getAssignee() == null ? null : saved.getAssignee().getId(),
+                AuditEntityType.TICKET,
+                saved.getId(),
+                "Ticket restored"
+        );
+
+        return TicketResponse.from(saved);
+    }
 }

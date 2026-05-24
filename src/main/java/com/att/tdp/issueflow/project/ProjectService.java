@@ -108,4 +108,34 @@ public class ProjectService {
 
         return project;
     }
+    @Transactional(readOnly = true)
+    public List<ProjectResponse> getDeletedProjects() {
+        return projectRepository.findByDeletedAtIsNotNull()
+                .stream()
+                .map(ProjectResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public ProjectResponse restoreProject(Long id) {
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Project not found: " + id));
+
+        if (!project.isDeleted()) {
+            return ProjectResponse.from(project);
+        }
+
+        project.restore();
+        Project saved = projectRepository.saveAndFlush(project);
+
+        auditLogService.recordUserAction(
+                AuditAction.RESTORE,
+                saved.getOwner().getId(),
+                AuditEntityType.PROJECT,
+                saved.getId(),
+                "Project restored"
+        );
+
+        return ProjectResponse.from(saved);
+    }
 }

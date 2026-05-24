@@ -3,6 +3,7 @@ package com.att.tdp.issueflow.project;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 
@@ -20,6 +21,17 @@ public class ProjectController {
     @ResponseStatus(HttpStatus.CREATED)
     public ProjectResponse createProject(@Valid @RequestBody CreateProjectRequest request) {
         return projectService.createProject(request);
+    }
+    @GetMapping("/deleted")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<ProjectResponse> getDeletedProjects() {
+        return projectService.getDeletedProjects();
+    }
+
+    @PostMapping("/{projectId}/restore")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ProjectResponse restoreProject(@PathVariable Long projectId) {
+        return projectService.restoreProject(projectId);
     }
 
     @GetMapping("/{projectId}")
@@ -45,4 +57,5 @@ public class ProjectController {
     public void deleteProject(@PathVariable Long projectId) {
         projectService.deleteProject(projectId);
     }
+
 }

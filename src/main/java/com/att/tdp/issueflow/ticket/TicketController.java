@@ -3,6 +3,7 @@ package com.att.tdp.issueflow.ticket;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 
@@ -20,6 +21,17 @@ public class TicketController {
     @ResponseStatus(HttpStatus.CREATED)
     public TicketResponse createTicket(@Valid @RequestBody CreateTicketRequest request) {
         return ticketService.createTicket(request);
+    }
+    @GetMapping("/deleted")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<TicketResponse> getDeletedTickets(@RequestParam Long projectId) {
+        return ticketService.getDeletedTicketsByProject(projectId);
+    }
+
+    @PostMapping("/{ticketId}/restore")
+    @PreAuthorize("hasRole('ADMIN')")
+    public TicketResponse restoreTicket(@PathVariable Long ticketId) {
+        return ticketService.restoreTicket(ticketId);
     }
 
     @GetMapping("/{ticketId}")
