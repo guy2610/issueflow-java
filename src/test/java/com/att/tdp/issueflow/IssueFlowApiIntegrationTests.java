@@ -8,6 +8,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -68,13 +69,13 @@ class IssueFlowApiIntegrationTests {
         long projectId = createProject(token, adminId);
         long ticketId = createTicket(token, projectId, adminId, "TODO");
 
-        mvc.perform(post("/tickets/update/{ticketId}", ticketId)
+        mvc.perform(patch("/tickets/{ticketId}", ticketId)
                         .header("Authorization", bearer(token))
                         .contentType(APPLICATION_JSON)
                         .content(json(Map.of("status", "IN_PROGRESS"))))
                 .andExpect(status().isOk());
 
-        mvc.perform(post("/tickets/update/{ticketId}", ticketId)
+        mvc.perform(patch("/tickets/{ticketId}", ticketId)
                         .header("Authorization", bearer(token))
                         .contentType(APPLICATION_JSON)
                         .content(json(Map.of("status", "TODO"))))
@@ -94,7 +95,7 @@ class IssueFlowApiIntegrationTests {
                         .header("Authorization", bearer(token))
                         .contentType(APPLICATION_JSON)
                         .content(json(Map.of("blockedBy", blockerTicketId))))
-                .andExpect(status().isCreated());
+                .andExpect(status().isOk());
 
         mvc.perform(post("/tickets/update/{ticketId}", blockedTicketId)
                         .header("Authorization", bearer(token))
@@ -112,7 +113,7 @@ class IssueFlowApiIntegrationTests {
 
         mvc.perform(delete("/tickets/{ticketId}", ticketId)
                         .header("Authorization", bearer(token)))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk());
 
         mvc.perform(get("/tickets/{ticketId}", ticketId)
                         .header("Authorization", bearer(token)))
@@ -265,7 +266,7 @@ class IssueFlowApiIntegrationTests {
 
         mvc.perform(delete("/attachments/{attachmentId}", attachmentId)
                         .header("Authorization", bearer(token)))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk());
 
         mvc.perform(get("/attachments/{attachmentId}", attachmentId)
                         .header("Authorization", bearer(token)))
@@ -279,7 +280,7 @@ class IssueFlowApiIntegrationTests {
         long projectId = createProject(token, adminId);
         long ticketId = createTicket(token, projectId, adminId, "TODO");
 
-        mvc.perform(post("/tickets/update/{ticketId}", ticketId)
+        mvc.perform(patch("/tickets/{ticketId}", ticketId)
                         .header("Authorization", bearer(token))
                         .contentType(APPLICATION_JSON)
                         .content(json(Map.of("description", "audit actor test"))))
@@ -302,13 +303,13 @@ class IssueFlowApiIntegrationTests {
         long projectId = createProject(token, adminId);
         long ticketId = createTicket(token, projectId, adminId, "TODO");
 
-        mvc.perform(post("/tickets/update/{ticketId}", ticketId)
+        mvc.perform(patch("/tickets/{ticketId}", ticketId)
                         .header("Authorization", bearer(token))
                         .contentType(APPLICATION_JSON)
                         .content(json(Map.of("status", "DONE"))))
                 .andExpect(status().isOk());
 
-        mvc.perform(post("/tickets/update/{ticketId}", ticketId)
+        mvc.perform(patch("/tickets/{ticketId}", ticketId)
                         .header("Authorization", bearer(token))
                         .contentType(APPLICATION_JSON)
                         .content(json(Map.of("description", "should fail"))))

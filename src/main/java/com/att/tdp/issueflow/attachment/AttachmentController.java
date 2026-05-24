@@ -56,6 +56,15 @@ public class AttachmentController {
     @DeleteMapping("/attachments/{attachmentId}")
     public ResponseEntity<Void> deleteAttachment(@PathVariable Long attachmentId) {
         attachmentService.deleteAttachment(attachmentId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/tickets/{ticketId}/attachments/{attachmentId}")
+    public ResponseEntity<Void> deleteAttachmentByTicketPath(
+            @PathVariable Long ticketId,
+            @PathVariable Long attachmentId
+    ) {
+        attachmentService.deleteAttachment(attachmentId);
+        return ResponseEntity.ok().build();
     }
 }

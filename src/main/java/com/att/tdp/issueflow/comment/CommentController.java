@@ -16,7 +16,7 @@ public class CommentController {
     }
 
     @PostMapping("/tickets/{ticketId}/comments")
-    @ResponseStatus(HttpStatus.CREATED)
+    @ResponseStatus(HttpStatus.OK)
     public CommentResponse addComment(
             @PathVariable Long ticketId,
             @Valid @RequestBody CreateCommentRequest request
@@ -38,8 +38,25 @@ public class CommentController {
     }
 
     @DeleteMapping("/comments/{commentId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @ResponseStatus(HttpStatus.OK)
     public void deleteComment(@PathVariable Long commentId) {
+        commentService.deleteComment(commentId);
+    }
+
+    @PatchMapping("/tickets/{ticketId}/comments/{commentId}")
+    public CommentResponse patchComment(
+            @PathVariable Long ticketId,
+            @PathVariable Long commentId,
+            @Valid @RequestBody UpdateCommentRequest request
+    ) {
+        return commentService.updateComment(commentId, request);
+    }
+    @DeleteMapping("/tickets/{ticketId}/comments/{commentId}")
+    @ResponseStatus(HttpStatus.OK)
+    public void deleteCommentByTicketPath(
+            @PathVariable Long ticketId,
+            @PathVariable Long commentId
+    ) {
         commentService.deleteComment(commentId);
     }
 }

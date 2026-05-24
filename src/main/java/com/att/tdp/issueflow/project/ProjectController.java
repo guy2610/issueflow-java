@@ -21,7 +21,7 @@ public class ProjectController {
     }
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
+    @ResponseStatus(HttpStatus.OK)
     public ProjectResponse createProject(@Valid @RequestBody CreateProjectRequest request) {
         return projectService.createProject(request);
     }
@@ -59,9 +59,16 @@ public class ProjectController {
     ) {
         return projectService.updateProject(projectId, request);
     }
+    @PatchMapping("/{projectId}")
+    public ProjectResponse patchProject(
+            @PathVariable Long projectId,
+            @Valid @RequestBody UpdateProjectRequest request
+    ) {
+        return projectService.updateProject(projectId, request);
+    }
 
     @DeleteMapping("/{projectId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @ResponseStatus(HttpStatus.OK)
     public void deleteProject(@PathVariable Long projectId) {
         projectService.deleteProject(projectId);
     }

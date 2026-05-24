@@ -17,7 +17,7 @@ public class TicketDependencyController {
     }
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
+    @ResponseStatus(HttpStatus.OK)
     public TicketDependencyResponse addDependency(
             @PathVariable Long ticketId,
             @Valid @RequestBody AddTicketDependencyRequest request
@@ -31,7 +31,7 @@ public class TicketDependencyController {
     }
 
     @DeleteMapping("/{blockerId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @ResponseStatus(HttpStatus.OK)
     public void removeDependency(
             @PathVariable Long ticketId,
             @PathVariable Long blockerId

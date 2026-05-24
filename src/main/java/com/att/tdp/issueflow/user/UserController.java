@@ -20,7 +20,7 @@ public class UserController {
         this.mentionService = mentionService;
     }
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
+    @ResponseStatus(HttpStatus.OK)
     public UserResponse createUser(@Valid @RequestBody CreateUserRequest request) {
         return userService.createUser(request);
     }
@@ -44,7 +44,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{userId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @ResponseStatus(HttpStatus.OK)
     public void deleteUser(@PathVariable Long userId) {
         userService.deleteUser(userId);
     }

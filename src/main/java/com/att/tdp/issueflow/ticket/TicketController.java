@@ -25,7 +25,7 @@ public class TicketController {
     }
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
+    @ResponseStatus(HttpStatus.OK)
     public TicketResponse createTicket(@Valid @RequestBody CreateTicketRequest request) {
         return ticketService.createTicket(request);
     }
@@ -84,8 +84,15 @@ public class TicketController {
     }
 
     @DeleteMapping("/{ticketId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @ResponseStatus(HttpStatus.OK)
     public void deleteTicket(@PathVariable Long ticketId) {
         ticketService.deleteTicket(ticketId);
+    }
+    @PatchMapping("/{ticketId}")
+    public TicketResponse patchTicket(
+            @PathVariable Long ticketId,
+            @Valid @RequestBody UpdateTicketRequest request
+    ) {
+        return ticketService.updateTicket(ticketId, request);
     }
 }
