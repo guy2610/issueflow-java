@@ -12,6 +12,7 @@ import com.att.tdp.issueflow.audit.AuditLogService;
 import com.att.tdp.issueflow.audit.AuditAction;
 import com.att.tdp.issueflow.audit.AuditEntityType;
 import com.att.tdp.issueflow.ticket.TicketDependencyRepository;
+import com.att.tdp.issueflow.project.WorkloadService;
 
 import java.util.List;
 
@@ -23,13 +24,15 @@ public class TicketService {
     private final UserService userService;
     private final AuditLogService auditLogService;
     private final TicketDependencyRepository ticketDependencyRepository;
+    private final WorkloadService workloadService;
 
     public TicketService(
             TicketRepository ticketRepository,
             ProjectService projectService,
             UserService userService,
             AuditLogService auditLogService,
-            TicketDependencyRepository ticketDependencyRepository
+            TicketDependencyRepository ticketDependencyRepository,
+            WorkloadService workloadService
 
     ) {
         this.ticketRepository = ticketRepository;
@@ -37,6 +40,7 @@ public class TicketService {
         this.userService = userService;
         this.auditLogService = auditLogService;
         this.ticketDependencyRepository = ticketDependencyRepository;
+        this.workloadService = workloadService;
     }
 
     @Transactional
@@ -44,8 +48,13 @@ public class TicketService {
         Project project = projectService.findActiveProjectEntity(request.projectId());
 
         User assignee = null;
+        boolean autoAssigned = false;
+
         if (request.assigneeId() != null) {
             assignee = userService.findUserEntity(request.assigneeId());
+        } else {
+            assignee = workloadService.selectLeastLoadedDeveloper(project);
+            autoAssigned = assignee != null;
         }
 
         Ticket ticket = new Ticket();
@@ -57,7 +66,7 @@ public class TicketService {
         ticket.setProject(project);
         ticket.setAssignee(assignee);
         ticket.setDueDate(request.dueDate());
-        Ticket saved = ticketRepository.save(ticket);
+        Ticket saved = ticketRepository.saveAndFlush(ticket);
 
         auditLogService.recordUserAction(
                 AuditAction.CREATE,
@@ -66,7 +75,9 @@ public class TicketService {
                 saved.getId(),
                 "Ticket created"
         );
-
+        if (autoAssigned) {
+            workloadService.recordAutoAssignment(saved.getId(), assignee);
+        }
         return TicketResponse.from(saved);
     }
 

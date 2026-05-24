@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import com.att.tdp.issueflow.project.WorkloadService;
 
 import java.util.List;
 
@@ -12,9 +13,11 @@ import java.util.List;
 public class ProjectController {
 
     private final ProjectService projectService;
+    private final WorkloadService workloadService;
 
-    public ProjectController(ProjectService projectService) {
+    public ProjectController(ProjectService projectService, WorkloadService workloadService) {
         this.projectService = projectService;
+        this.workloadService = workloadService;
     }
 
     @PostMapping
@@ -32,6 +35,11 @@ public class ProjectController {
     @PreAuthorize("hasRole('ADMIN')")
     public ProjectResponse restoreProject(@PathVariable Long projectId) {
         return projectService.restoreProject(projectId);
+    }
+
+    @GetMapping("/{projectId}/workload")
+    public List<WorkloadResponse> getProjectWorkload(@PathVariable Long projectId) {
+        return workloadService.getProjectWorkload(projectId);
     }
 
     @GetMapping("/{projectId}")
