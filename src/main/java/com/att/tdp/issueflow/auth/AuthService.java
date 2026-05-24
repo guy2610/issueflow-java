@@ -43,6 +43,8 @@ public class AuthService {
             throw new UnauthorizedException("Invalid username or password");
         }
 
+        String token = jwtService.generateToken(user);
+
         auditLogService.recordUserAction(
                 AuditAction.LOGIN,
                 user.getId(),
@@ -51,7 +53,7 @@ public class AuthService {
                 "User logged in"
         );
 
-        return LoginResponse.bearer(jwtService.generateToken(user));
+        return LoginResponse.bearer(token, jwtService.getExpirationSeconds());
     }
 
     public void logout(String token) {

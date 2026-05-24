@@ -1,15 +1,17 @@
 package com.att.tdp.issueflow.ticket;
 
 public record TicketDependencyResponse(
-        Long ticketId,
-        Long blockedBy,
-        TicketStatus blockerStatus
+        Long id,
+        String title,
+        TicketStatus status
 ) {
     public static TicketDependencyResponse from(TicketDependency dependency) {
+        Ticket blocker = dependency.getBlockedBy();
+
         return new TicketDependencyResponse(
-                dependency.getTicket().getId(),
-                dependency.getBlockedBy().getId(),
-                dependency.getBlockedBy().getStatus()
+                blocker.getId(),
+                blocker.getTitle(),
+                blocker.getStatus()
         );
     }
 }

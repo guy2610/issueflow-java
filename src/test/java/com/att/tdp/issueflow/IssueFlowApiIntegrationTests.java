@@ -156,9 +156,12 @@ class IssueFlowApiIntegrationTests {
         assertThat(comment.get("mentionedUsers").get(0).get("id").asLong()).isEqualTo(devId);
 
         JsonNode mentions = getJson("/users/" + devId + "/mentions", token);
+        JsonNode data = mentions.get("data");
 
-        assertThat(mentions).hasSize(1);
-        assertThat(mentions.get(0).get("id").asLong()).isEqualTo(comment.get("id").asLong());
+        assertThat(data).hasSize(1);
+        assertThat(data.get(0).get("id").asLong()).isEqualTo(comment.get("id").asLong());
+        assertThat(mentions.get("total").asInt()).isEqualTo(1);
+        assertThat(mentions.get("page").asInt()).isEqualTo(1);
     }
 
     @Test
@@ -291,8 +294,8 @@ class IssueFlowApiIntegrationTests {
         assertThat(anyNode(ticketLogs, node ->
                 node.get("action").asText().equals("UPDATE")
                         && node.get("entityId").asLong() == ticketId
-                        && node.get("actorType").asText().equals("USER")
-                        && node.get("actorUserId").asLong() == adminId
+                        && node.get("actor").asText().equals("USER")
+                        && node.get("performedBy").asLong() == adminId
         )).isTrue();
     }
 

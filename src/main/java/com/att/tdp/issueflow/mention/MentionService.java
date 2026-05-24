@@ -92,4 +92,10 @@ public class MentionService {
     public void deleteMentionsForComment(Long commentId) {
         mentionRepository.deleteByCommentId(commentId);
     }
+
+    @Transactional(readOnly = true)
+    public MentionPageResponse getMentionPageForUser(Long userId, int page) {
+        List<CommentResponse> comments = getCommentsMentioningUser(userId);
+        return MentionPageResponse.of(comments, page);
+    }
 }

@@ -95,3 +95,5 @@ During implementation, some endpoints were initially designed with more conventi
 Before finalizing the submission, the API was aligned with the README contract because the assignment explicitly defines the README API table as the implementation contract.
 
 For compatibility, the implementation keeps some earlier convenience routes while also supporting the README-defined routes and response behavior. This keeps the API practical while reducing the risk of failing contract-based validation.
+
+Response payloads were aligned with the README examples where the contract defines specific field names, such as `expiresIn` for login, `filename` for attachments, `performedBy`/`actor`/`timestamp` for audit logs, dependency blocker fields, and the mentions response wrapper.

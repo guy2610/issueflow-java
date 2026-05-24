@@ -6,11 +6,11 @@ public record AttachmentResponse(
         Long id,
         Long ticketId,
         Long uploadedByUserId,
-        String originalFileName,
+        String filename,
         String contentType,
         long sizeBytes,
         Instant createdAt
-){
+) {
     public static AttachmentResponse from(Attachment attachment) {
         return new AttachmentResponse(
                 attachment.getId(),

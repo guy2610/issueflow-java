@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import com.att.tdp.issueflow.comment.CommentResponse;
 import com.att.tdp.issueflow.mention.MentionService;
+import com.att.tdp.issueflow.mention.MentionPageResponse;
 
 import java.util.List;
 
@@ -50,7 +51,11 @@ public class UserController {
     }
 
     @GetMapping("/{userId}/mentions")
-    public List<CommentResponse> getMentions(@PathVariable Long userId) {
-        return mentionService.getCommentsMentioningUser(userId);
+    public MentionPageResponse getMentions(
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return mentionService.getMentionPageForUser(userId, page);
     }
 }

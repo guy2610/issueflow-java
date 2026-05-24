@@ -5,23 +5,23 @@ import java.time.Instant;
 public record AuditLogResponse(
         Long id,
         AuditAction action,
-        AuditActorType actorType,
-        Long actorUserId,
         AuditEntityType entityType,
         Long entityId,
-        String details,
-        Instant createdAt
+        Long performedBy,
+        AuditActorType actor,
+        Instant timestamp,
+        String details
 ) {
     public static AuditLogResponse from(AuditLog log) {
         return new AuditLogResponse(
                 log.getId(),
                 log.getAction(),
-                log.getActorType(),
-                log.getActorUserId(),
                 log.getEntityType(),
                 log.getEntityId(),
-                log.getDetails(),
-                log.getCreatedAt()
+                log.getActorUserId(),
+                log.getActorType(),
+                log.getCreatedAt(),
+                log.getDetails()
         );
     }
 }

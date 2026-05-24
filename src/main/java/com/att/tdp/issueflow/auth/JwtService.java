@@ -50,4 +50,8 @@ public class JwtService {
     public String extractUsername(String token) {
         return parseClaims(token).getSubject();
     }
+
+    public long getExpirationSeconds() {
+        return expirationSeconds;
+    }
 }
