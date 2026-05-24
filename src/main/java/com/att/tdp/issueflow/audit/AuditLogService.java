@@ -3,6 +3,7 @@ package com.att.tdp.issueflow.audit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import com.att.tdp.issueflow.common.security.CurrentUserService;
 
 import java.util.List;
 
@@ -10,11 +11,15 @@ import java.util.List;
 public class AuditLogService {
 
     private final AuditLogRepository auditLogRepository;
+    private final CurrentUserService currentUserService;
 
-    public AuditLogService(AuditLogRepository auditLogRepository) {
+    public AuditLogService(
+            AuditLogRepository auditLogRepository,
+            CurrentUserService currentUserService
+    ) {
         this.auditLogRepository = auditLogRepository;
+        this.currentUserService = currentUserService;
     }
-
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordUserAction(
             AuditAction action,
@@ -86,5 +91,22 @@ public class AuditLogService {
                 .stream()
                 .map(AuditLogResponse::from)
                 .toList();
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordCurrentUserAction(
+            AuditAction action,
+            AuditEntityType entityType,
+            Long entityId,
+            String details
+    ) {
+        Long actorUserId = currentUserService.getCurrentUserId().orElse(null);
+
+        if (actorUserId == null) {
+            record(action, AuditActorType.SYSTEM, null, entityType, entityId, details);
+            return;
+        }
+
+        record(action, AuditActorType.USER, actorUserId, entityType, entityId, details);
     }
 }

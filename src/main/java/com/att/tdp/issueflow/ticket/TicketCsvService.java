@@ -81,9 +81,8 @@ public class TicketCsvService {
                 }
             }
 
-            auditLogService.recordUserAction(
+            auditLogService.recordCurrentUserAction(
                     AuditAction.EXPORT,
-                    null,
                     AuditEntityType.TICKET,
                     projectId,
                     "Exported tickets for project " + projectId
@@ -134,9 +133,8 @@ public class TicketCsvService {
                 }
             }
 
-            auditLogService.recordUserAction(
+            auditLogService.recordCurrentUserAction(
                     AuditAction.IMPORT,
-                    null,
                     AuditEntityType.TICKET,
                     projectId,
                     "Imported tickets for project " + projectId + ": created=" + created + ", failed=" + failed

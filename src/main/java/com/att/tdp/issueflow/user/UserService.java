@@ -57,7 +57,7 @@ public class UserService {
         user.setPasswordHash(passwordEncoder.encode(rawPassword));
 
         User saved = userRepository.save(user);
-        auditLogService.recordSystemAction(
+        auditLogService.recordCurrentUserAction(
                 AuditAction.CREATE,
                 AuditEntityType.USER,
                 saved.getId(),
@@ -89,9 +89,8 @@ public class UserService {
 
         user.setRole(request.role());
 
-        auditLogService.recordUserAction(
+        auditLogService.recordCurrentUserAction(
                 AuditAction.UPDATE,
-                id,
                 AuditEntityType.USER,
                 user.getId(),
                 "User updated"
@@ -103,9 +102,8 @@ public class UserService {
     public void deleteUser(Long id) {
         User user = findUserEntity(id);
         userRepository.delete(user);
-        auditLogService.recordUserAction(
+        auditLogService.recordCurrentUserAction(
                 AuditAction.DELETE,
-                id,
                 AuditEntityType.USER,
                 user.getId(),
                 "User deleted"

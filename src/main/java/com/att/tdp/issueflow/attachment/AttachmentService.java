@@ -102,9 +102,8 @@ public class AttachmentService {
 
         Attachment saved = attachmentRepository.save(attachment);
 
-        auditLogService.recordUserAction(
+        auditLogService.recordCurrentUserAction(
                 AuditAction.CREATE,
-                uploadedBy == null ? null : uploadedBy.getId(),
                 AuditEntityType.ATTACHMENT,
                 saved.getId(),
                 "Attachment uploaded to ticket " + ticketId
@@ -145,9 +144,8 @@ public class AttachmentService {
 
         attachmentRepository.delete(attachment);
 
-        auditLogService.recordUserAction(
+        auditLogService.recordCurrentUserAction(
                 AuditAction.DELETE,
-                uploadedByUserId,
                 AuditEntityType.ATTACHMENT,
                 attachmentId,
                 "Attachment deleted"

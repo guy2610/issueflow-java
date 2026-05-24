@@ -35,9 +35,8 @@ public class ProjectService {
         project.setOwner(owner);
         Project saved = projectRepository.save(project);
 
-        auditLogService.recordUserAction(
+        auditLogService.recordCurrentUserAction(
                 AuditAction.CREATE,
-                request.ownerId(),
                 AuditEntityType.PROJECT,
                 saved.getId(),
                 "Project created"
@@ -75,11 +74,10 @@ public class ProjectService {
         }
 
         Project saved = projectRepository.saveAndFlush(project);
-        auditLogService.recordUserAction(
+        auditLogService.recordCurrentUserAction(
                 AuditAction.UPDATE,
-                project.getOwner().getId(),
                 AuditEntityType.PROJECT,
-                project.getId(),
+                saved.getId(),
                 "Project updated"
         );
         return ProjectResponse.from(saved);
@@ -89,9 +87,8 @@ public class ProjectService {
     public void deleteProject(Long id) {
         Project project = findActiveProjectEntity(id);
         project.softDelete();
-        auditLogService.recordUserAction(
+        auditLogService.recordCurrentUserAction(
                 AuditAction.DELETE,
-                project.getOwner().getId(),
                 AuditEntityType.PROJECT,
                 project.getId(),
                 "Project soft-deleted"
@@ -128,9 +125,8 @@ public class ProjectService {
         project.restore();
         Project saved = projectRepository.saveAndFlush(project);
 
-        auditLogService.recordUserAction(
+        auditLogService.recordCurrentUserAction(
                 AuditAction.RESTORE,
-                saved.getOwner().getId(),
                 AuditEntityType.PROJECT,
                 saved.getId(),
                 "Project restored"

@@ -68,9 +68,8 @@ public class TicketService {
         ticket.setDueDate(request.dueDate());
         Ticket saved = ticketRepository.saveAndFlush(ticket);
 
-        auditLogService.recordUserAction(
+        auditLogService.recordCurrentUserAction(
                 AuditAction.CREATE,
-                saved.getAssignee() == null ? null : saved.getAssignee().getId(),
                 AuditEntityType.TICKET,
                 saved.getId(),
                 "Ticket created"
@@ -142,9 +141,8 @@ public class TicketService {
         }
 
         Ticket saved = ticketRepository.saveAndFlush(ticket);
-        auditLogService.recordUserAction(
+        auditLogService.recordCurrentUserAction(
                 AuditAction.UPDATE,
-                saved.getAssignee() == null ? null : saved.getAssignee().getId(),
                 AuditEntityType.TICKET,
                 saved.getId(),
                 "Ticket updated"
@@ -156,9 +154,8 @@ public class TicketService {
     public void deleteTicket(Long id) {
         Ticket ticket = findActiveTicketEntity(id);
         ticket.softDelete();
-        auditLogService.recordUserAction(
+        auditLogService.recordCurrentUserAction(
                 AuditAction.DELETE,
-                ticket.getAssignee() == null ? null : ticket.getAssignee().getId(),
                 AuditEntityType.TICKET,
                 ticket.getId(),
                 "Ticket soft-deleted"
@@ -206,14 +203,12 @@ public class TicketService {
         ticket.restore();
         Ticket saved = ticketRepository.saveAndFlush(ticket);
 
-        auditLogService.recordUserAction(
+        auditLogService.recordCurrentUserAction(
                 AuditAction.RESTORE,
-                saved.getAssignee() == null ? null : saved.getAssignee().getId(),
                 AuditEntityType.TICKET,
                 saved.getId(),
                 "Ticket restored"
         );
-
         return TicketResponse.from(saved);
     }
 }

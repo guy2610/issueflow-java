@@ -49,14 +49,14 @@ public class MentionService {
             Mention mention = new Mention();
             mention.setComment(comment);
             mention.setMentionedUser(user);
-            mentionRepository.save(mention);
 
-            auditLogService.recordUserAction(
+            Mention saved = mentionRepository.save(mention);
+
+            auditLogService.recordCurrentUserAction(
                     AuditAction.CREATE,
-                    comment.getAuthor().getId(),
                     AuditEntityType.MENTION,
-                    user.getId(),
-                    "User mentioned in comment " + comment.getId()
+                    saved.getId(),
+                    "User " + user.getId() + " mentioned in comment " + comment.getId()
             );
         }
     }

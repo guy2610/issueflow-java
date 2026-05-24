@@ -49,9 +49,8 @@ public class CommentService {
         Comment saved = commentRepository.save(comment);
         mentionService.reevaluateMentions(saved);
 
-        auditLogService.recordUserAction(
+        auditLogService.recordCurrentUserAction(
                 AuditAction.CREATE,
-                author.getId(),
                 AuditEntityType.COMMENT,
                 saved.getId(),
                 "Comment created"
@@ -79,9 +78,8 @@ public class CommentService {
 
         Comment saved = commentRepository.saveAndFlush(comment);
 
-        auditLogService.recordUserAction(
+        auditLogService.recordCurrentUserAction(
                 AuditAction.UPDATE,
-                comment.getAuthor().getId(),
                 AuditEntityType.COMMENT,
                 saved.getId(),
                 "Comment updated"
@@ -96,9 +94,8 @@ public class CommentService {
         Comment comment = findCommentEntity(commentId);
         mentionService.deleteMentionsForComment(comment.getId());
         commentRepository.delete(comment);
-        auditLogService.recordUserAction(
+        auditLogService.recordCurrentUserAction(
                 AuditAction.DELETE,
-                comment.getAuthor().getId(),
                 AuditEntityType.COMMENT,
                 comment.getId(),
                 "Comment deleted"

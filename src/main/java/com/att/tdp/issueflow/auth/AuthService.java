@@ -56,11 +56,11 @@ public class AuthService {
 
     public void logout(String token) {
         tokenDenyListService.deny(token);
-        auditLogService.recordSystemAction(
+        auditLogService.recordCurrentUserAction(
                 AuditAction.LOGOUT,
                 AuditEntityType.AUTH,
                 null,
-                "Token logged out"
+                "User logged out"
         );
     }
 

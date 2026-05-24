@@ -51,9 +51,8 @@ public class TicketDependencyService {
 
         TicketDependency saved = dependencyRepository.save(dependency);
 
-        auditLogService.recordUserAction(
+        auditLogService.recordCurrentUserAction(
                 AuditAction.ADD_DEPENDENCY,
-                ticket.getAssignee() == null ? null : ticket.getAssignee().getId(),
                 AuditEntityType.DEPENDENCY,
                 saved.getId(),
                 "Ticket " + ticketId + " blocked by ticket " + blocker.getId()
@@ -80,11 +79,8 @@ public class TicketDependencyService {
 
         dependencyRepository.delete(dependency);
 
-        auditLogService.recordUserAction(
+        auditLogService.recordCurrentUserAction(
                 AuditAction.REMOVE_DEPENDENCY,
-                dependency.getTicket().getAssignee() == null
-                        ? null
-                        : dependency.getTicket().getAssignee().getId(),
                 AuditEntityType.DEPENDENCY,
                 dependency.getId(),
                 "Removed dependency from ticket " + ticketId + " to blocker " + blockerId
