@@ -127,8 +127,9 @@ public class TicketService {
         }
 
         if (request.priority() != null) {
-            ticket.setPriority(request.priority());
-            ticket.setOverdue(false);
+            if (request.priority() != ticket.getPriority()) {
+                ticket.setOverdue(false);
+            }
         }
 
         if (request.assigneeId() != null) {
