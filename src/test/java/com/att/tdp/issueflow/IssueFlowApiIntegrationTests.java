@@ -295,6 +295,79 @@ class IssueFlowApiIntegrationTests {
         )).isTrue();
     }
 
+    @Test
+    void doneTicketCannotBeUpdated() throws Exception {
+        String token = createAdminAndLogin();
+        long adminId = getMeUserId(token);
+        long projectId = createProject(token, adminId);
+        long ticketId = createTicket(token, projectId, adminId, "TODO");
+
+        mvc.perform(post("/tickets/update/{ticketId}", ticketId)
+                        .header("Authorization", bearer(token))
+                        .contentType(APPLICATION_JSON)
+                        .content(json(Map.of("status", "DONE"))))
+                .andExpect(status().isOk());
+
+        mvc.perform(post("/tickets/update/{ticketId}", ticketId)
+                        .header("Authorization", bearer(token))
+                        .contentType(APPLICATION_JSON)
+                        .content(json(Map.of("description", "should fail"))))
+                .andExpect(status().isBadRequest());
+    }
+    @Test
+    void deletedTicketsEndpointRequiresAdminRole() throws Exception {
+        JsonNode dev = createUser(unique("dev"), "DEVELOPER");
+        String token = login(dev.get("username").asText());
+
+        mvc.perform(get("/tickets/deleted?projectId=1")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isForbidden());
+    }@Test
+    void attachmentRejectsUnsupportedContentType() throws Exception {
+        String token = createAdminAndLogin();
+        long adminId = getMeUserId(token);
+        long projectId = createProject(token, adminId);
+        long ticketId = createTicket(token, projectId, adminId, "TODO");
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "bad.html",
+                "text/html",
+                "<html>bad</html>".getBytes(StandardCharsets.UTF_8)
+        );
+
+        mvc.perform(multipart("/tickets/{ticketId}/attachments", ticketId)
+                        .file(file)
+                        .param("uploadedByUserId", String.valueOf(adminId))
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isBadRequest());
+    }@Test
+    void csvExportReturnsTicketsAsCsv() throws Exception {
+        String token = createAdminAndLogin();
+        long adminId = getMeUserId(token);
+        long projectId = createProject(token, adminId);
+
+        postJson("/tickets", token, Map.of(
+                "title", "Export ticket",
+                "description", "Description with, comma",
+                "status", "TODO",
+                "priority", "LOW",
+                "type", "BUG",
+                "projectId", projectId,
+                "assigneeId", adminId
+        ));
+
+        String csv = mvc.perform(get("/tickets/export?projectId=" + projectId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertThat(csv).contains("id,title,description,status,priority,type,assigneeId");
+        assertThat(csv).contains("Export ticket");
+        assertThat(csv).contains("\"Description with, comma\"");
+    }
     private String createAdminAndLogin() throws Exception {
         String username = unique("admin");
         createUser(username, "ADMIN");
