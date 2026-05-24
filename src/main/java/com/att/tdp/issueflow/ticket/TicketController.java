@@ -34,7 +34,7 @@ public class TicketController {
     public List<TicketResponse> getDeletedTickets(@RequestParam Long projectId) {
         return ticketService.getDeletedTicketsByProject(projectId);
     }
-    
+
     @GetMapping(value = "/export", produces = "text/csv")
     public ResponseEntity<String> exportTickets(@RequestParam Long projectId) {
         String csv = ticketCsvService.exportTickets(projectId);

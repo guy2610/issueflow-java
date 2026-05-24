@@ -26,3 +26,7 @@ app:
   jwt:
     secret: ${JWT_SECRET:issueflow-tdp-2026-local-development-secret-key-32-bytes-minimum}
     expiration-seconds: ${JWT_EXPIRATION_SECONDS:14400}
+  escalation:
+    fixed-delay-ms: 60000
+  attachments:
+    storage-dir: uploads/attachments

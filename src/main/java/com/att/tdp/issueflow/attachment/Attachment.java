@@ -26,8 +26,11 @@ public class Attachment {
     @JoinColumn(name = "uploaded_by_user_id")
     private User uploadedBy;
 
-    @Column(name = "file_name", nullable = false)
-    private String fileName;
+    @Column(name = "original_file_name", nullable = false)
+    private String originalFileName;
+
+    @Column(name = "stored_file_name", nullable = false, unique = true)
+    private String storedFileName;
 
     @Column(name = "content_type", nullable = false)
     private String contentType;
@@ -35,10 +38,8 @@ public class Attachment {
     @Column(name = "size_bytes", nullable = false)
     private long sizeBytes;
 
-    @Lob
-    @Basic(fetch = FetchType.LAZY)
-    @Column(nullable = false)
-    private byte[] data;
+    @Column(name = "storage_path", nullable = false)
+    private String storagePath;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -47,4 +48,6 @@ public class Attachment {
     void onCreate() {
         createdAt = Instant.now();
     }
+
+
 }

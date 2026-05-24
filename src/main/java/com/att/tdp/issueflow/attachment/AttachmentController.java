@@ -35,9 +35,10 @@ public class AttachmentController {
 
     @GetMapping("/attachments/{attachmentId}")
     public ResponseEntity<ByteArrayResource> downloadAttachment(@PathVariable Long attachmentId) {
-        Attachment attachment = attachmentService.getAttachmentEntity(attachmentId);
+        AttachmentDownload download = attachmentService.downloadAttachment(attachmentId);
+        Attachment attachment = download.attachment();
 
-        ByteArrayResource resource = new ByteArrayResource(attachment.getData());
+        ByteArrayResource resource = new ByteArrayResource(download.data());
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(attachment.getContentType()))
@@ -45,7 +46,7 @@ public class AttachmentController {
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
                         ContentDisposition.attachment()
-                                .filename(attachment.getFileName())
+                                .filename(attachment.getOriginalFileName())
                                 .build()
                                 .toString()
                 )

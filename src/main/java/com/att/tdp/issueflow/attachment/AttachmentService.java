@@ -12,7 +12,12 @@ import com.att.tdp.issueflow.user.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.beans.factory.annotation.Value;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.UUID;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
@@ -29,10 +34,14 @@ public class AttachmentService {
             "text/plain"
     );
 
+    @Value("${app.attachments.storage-dir:uploads/attachments}")
+    private String storageDir;
+
     private final AttachmentRepository attachmentRepository;
     private final TicketService ticketService;
     private final UserService userService;
     private final AuditLogService auditLogService;
+
 
     public AttachmentService(
             AttachmentRepository attachmentRepository,
@@ -71,15 +80,25 @@ public class AttachmentService {
         Attachment attachment = new Attachment();
         attachment.setTicket(ticket);
         attachment.setUploadedBy(uploadedBy);
-        attachment.setFileName(safeFileName(file.getOriginalFilename()));
         attachment.setContentType(contentType);
         attachment.setSizeBytes(file.getSize());
 
+        String originalFileName = safeFileName(file.getOriginalFilename());
+        String storedFileName = UUID.randomUUID() + "-" + originalFileName;
+
+        Path directory = Path.of(storageDir);
+        Path targetPath = directory.resolve(storedFileName).normalize();
+
         try {
-            attachment.setData(file.getBytes());
+            Files.createDirectories(directory);
+            Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException ex) {
-            throw new BadRequestException("Failed to read attachment data");
+            throw new BadRequestException("Failed to store attachment file");
         }
+
+        attachment.setOriginalFileName(originalFileName);
+        attachment.setStoredFileName(storedFileName);
+        attachment.setStoragePath(targetPath.toString());
 
         Attachment saved = attachmentRepository.save(attachment);
 
@@ -118,6 +137,12 @@ public class AttachmentService {
                 ? null
                 : attachment.getUploadedBy().getId();
 
+        try {
+            Files.deleteIfExists(Path.of(attachment.getStoragePath()));
+        } catch (IOException ex) {
+            throw new BadRequestException("Failed to delete attachment file");
+        }
+
         attachmentRepository.delete(attachment);
 
         auditLogService.recordUserAction(
@@ -136,4 +161,15 @@ public class AttachmentService {
 
         return originalFileName.replace("\\", "_").replace("/", "_");
     }
+    public AttachmentDownload downloadAttachment(Long attachmentId) {
+        Attachment attachment = getAttachmentEntity(attachmentId);
+
+        try {
+            byte[] data = Files.readAllBytes(Path.of(attachment.getStoragePath()));
+            return new AttachmentDownload(attachment, data);
+        } catch (IOException ex) {
+            throw new NotFoundException("Attachment file not found on disk: " + attachmentId);
+        }
+    }
+
 }
