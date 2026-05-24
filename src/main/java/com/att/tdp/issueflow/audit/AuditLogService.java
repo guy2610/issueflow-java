@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import com.att.tdp.issueflow.common.security.CurrentUserService;
+import com.att.tdp.issueflow.audit.AuditActorType;
 
 import java.util.List;
 
@@ -64,6 +65,8 @@ public class AuditLogService {
     public List<AuditLogResponse> getLogs(
             AuditAction action,
             AuditEntityType entityType,
+            Long entityId,
+            String actor,
             Long actorUserId
     ) {
         if (action != null) {
@@ -80,11 +83,37 @@ public class AuditLogService {
                     .toList();
         }
 
+        if (entityId != null) {
+            return auditLogRepository.findByEntityId(entityId)
+                    .stream()
+                    .map(AuditLogResponse::from)
+                    .toList();
+        }
+
         if (actorUserId != null) {
             return auditLogRepository.findByActorUserId(actorUserId)
                     .stream()
                     .map(AuditLogResponse::from)
                     .toList();
+        }
+
+        if (actor != null && !actor.isBlank()) {
+            if ("SYSTEM".equalsIgnoreCase(actor)) {
+                return auditLogRepository.findByActorType(AuditActorType.SYSTEM)
+                        .stream()
+                        .map(AuditLogResponse::from)
+                        .toList();
+            }
+
+            try {
+                Long parsedActorUserId = Long.parseLong(actor);
+                return auditLogRepository.findByActorUserId(parsedActorUserId)
+                        .stream()
+                        .map(AuditLogResponse::from)
+                        .toList();
+            } catch (NumberFormatException ex) {
+                return List.of();
+            }
         }
 
         return auditLogRepository.findAll()

@@ -87,3 +87,11 @@ Validation errors, missing resources, conflicts, unauthorized requests, forbidde
 AI was used as an implementation assistant for planning, code generation, debugging, and documentation drafting.
 
 The code was reviewed and tested incrementally, and each major feature was committed separately to keep the implementation traceable.
+
+### API Contract Compatibility
+
+During implementation, some endpoints were initially designed with more conventional REST status codes and routes, such as `201 Created` for creation, `204 No Content` for deletion, and PATCH-based updates.
+
+Before finalizing the submission, the API was aligned with the README contract because the assignment explicitly defines the README API table as the implementation contract.
+
+For compatibility, the implementation keeps some earlier convenience routes while also supporting the README-defined routes and response behavior. This keeps the API practical while reducing the risk of failing contract-based validation.

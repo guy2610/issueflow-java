@@ -19,8 +19,10 @@ public class AuditLogController {
     public List<AuditLogResponse> getLogs(
             @RequestParam(required = false) AuditAction action,
             @RequestParam(required = false) AuditEntityType entityType,
+            @RequestParam(required = false) Long entityId,
+            @RequestParam(required = false) String actor,
             @RequestParam(required = false) Long actorUserId
     ) {
-        return auditLogService.getLogs(action, entityType, actorUserId);
+        return auditLogService.getLogs(action, entityType, entityId, actor, actorUserId);
     }
 }
