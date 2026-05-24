@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.att.tdp.issueflow.audit.AuditLogService;
 import com.att.tdp.issueflow.audit.AuditAction;
 import com.att.tdp.issueflow.audit.AuditEntityType;
+import com.att.tdp.issueflow.ticket.TicketDependencyRepository;
 
 import java.util.List;
 
@@ -21,17 +22,21 @@ public class TicketService {
     private final ProjectService projectService;
     private final UserService userService;
     private final AuditLogService auditLogService;
+    private final TicketDependencyRepository ticketDependencyRepository;
 
     public TicketService(
             TicketRepository ticketRepository,
             ProjectService projectService,
             UserService userService,
-            AuditLogService auditLogService
+            AuditLogService auditLogService,
+            TicketDependencyRepository ticketDependencyRepository
+
     ) {
         this.ticketRepository = ticketRepository;
         this.projectService = projectService;
         this.userService = userService;
         this.auditLogService = auditLogService;
+        this.ticketDependencyRepository = ticketDependencyRepository;
     }
 
     @Transactional
@@ -101,6 +106,12 @@ public class TicketService {
 
         if (request.status() != null) {
             validateStatusTransition(ticket.getStatus(), request.status());
+
+            if (request.status() == TicketStatus.DONE &&
+                    ticketDependencyRepository.existsByTicketIdAndBlockedByStatusNot(ticket.getId(), TicketStatus.DONE)) {
+                throw new BadRequestException("Ticket cannot transition to DONE while it has unresolved blockers");
+            }
+
             ticket.setStatus(request.status());
         }
 
