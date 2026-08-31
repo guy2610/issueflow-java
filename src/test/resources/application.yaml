@@ -11,7 +11,7 @@ spring:
     driverClassName: org.h2.Driver
   sql:
     init:
-      platform: mssql
+      platform: h2
   h2:
     console:
       enabled: true

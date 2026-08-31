@@ -1,214 +1,157 @@
-<p align="center">
-  <a href="https://spring.io/projects/spring-boot" target="blank"><img src="https://spring.io/img/spring-2.svg" width="200" alt="Spring Logo" /></a>
-</p>
+# IssueFlow
 
-# IssueFlow – Ticket Management Backend Platform
+IssueFlow is a backend project and ticket management system built with Java 21 and Spring Boot. It focuses on enforceable workflow rules, dependency-aware ticket completion, role-aware operations, workload-based assignment, auditing, bulk CSV workflows, and attachment handling.
 
-## Overview
-IssueFlow is a backend service designed to handle a lightweight project and issue tracking platform.
-The system manages users, projects, tickets (issues), comments on tickets, audit logs, ticket dependencies, attachments, and bulk ticket import/export.
+## What IssueFlow does
 
-## Functionality
-The system provides the following APIs:
+IssueFlow provides a stateless HTTP API for:
 
-- **Users API**: Manages user identities behind ticket assignments and comments.
-- **Projects API**: Manages top-level containers that group related tickets.
-- **Tickets API**: Manages the core work items (issues) tracked in the system.
-- **Comments API**: Manages user comments on tickets.
-- **Audit Log API**: Read-only log of all state-changing actions in the system.
-- **Dependencies API**: Manages ticket-to-ticket blocker relationships.
-- **Attachments API**: Manages file attachments on tickets.
-- **Export/Import API**: Supports bulk ticket export and import via CSV.
-- **Soft Delete API**: Tickets and projects are soft-deleted and can be restored by ADMIN users.
-- **Mentions API**: `@username` mentions in comments are validated, persisted, and retrievable per user.
-- **Auto-Escalation**: A background scheduler automatically escalates ticket priority when a `dueDate` is exceeded.
-- **Auto-Assignment**: Tickets without an explicit assignee are automatically assigned to the least-loaded DEVELOPER in the project.
+- managing users with `ADMIN` and `DEVELOPER` roles;
+- creating projects and tracking their owners;
+- managing tickets through a forward-only lifecycle;
+- defining direct ticket dependencies and preventing completion while blockers remain unresolved;
+- assigning tickets explicitly or selecting a developer based on project workload;
+- adding comments and resolving `@username` mentions;
+- escalating overdue ticket priority on a schedule;
+- recording user- and system-initiated audit events;
+- importing and exporting tickets as CSV; and
+- storing attachment metadata in PostgreSQL while keeping file content on the local filesystem.
 
-## Technical Aspects
-The system is built using Java 21 or Java 25 with Spring Boot 3 or Spring Boot 4, leveraging its robust framework for creating RESTful APIs. Data persistence is managed using PostgreSQL via Spring Data JPA (Hibernate).
+The API uses JWT authentication. Administrative operations, including user administration, audit-log access, and restoration of soft-deleted records, require the `ADMIN` role.
 
-## Homework Task
-Candidates are expected to design and implement the above APIs, adhering to RESTful principles, including input validation, proper error handling, and relevant tests.
+## Engineering highlights
 
----
+- **Explicit lifecycle invariants.** New tickets begin in `TODO`; status changes move forward through `TODO`, `IN_PROGRESS`, `IN_REVIEW`, and `DONE`; and completed tickets are terminal.
+- **Dependency-aware completion.** A ticket cannot move to `DONE` while any of its direct blockers is unresolved. Self-dependencies, duplicate dependencies, and cross-project dependencies are rejected.
+- **Optimistic-locking groundwork.** Mutable ticket and comment entities use JPA `@Version`. The persistence layer can detect conflicting writes, although the API does not yet expose versions through an HTTP concurrency contract.
+- **Transactional service boundaries.** Domain mutations and their audit entries share the same transaction, so a rolled-back mutation does not leave behind a successful domain audit record. Authentication security events use an explicitly separate transaction.
+- **Actor-aware auditing.** `USER` identifies API-originated activity and records the authenticated user ID when one exists; `SYSTEM` identifies automated activity such as scheduled escalation.
+- **Workload-aware assignment.** Automatic assignment selects the developer with the fewest active tickets in the project, with deterministic tie-breaking.
+- **Scheduled escalation.** A scheduler raises the priority of overdue, incomplete tickets one level at a time and marks already-critical tickets as overdue.
+- **Row-oriented CSV processing.** Apache Commons CSV is used to parse imports and produce row-level success or validation results. The current import runs within one service transaction; it is not an independently committed transaction per row.
+- **Separated attachment storage.** Attachment metadata is persisted through JPA, while content is stored behind a filesystem storage service. This keeps binary data out of the relational model while making the storage tradeoff explicit.
+- **Package-by-feature modular monolith.** Authentication, users, projects, tickets, comments, mentions, attachments, and auditing are organized as cohesive feature packages in one deployable Spring Boot application.
 
-## APIs
+## Architecture
 
-### Users APIs
+IssueFlow is intentionally a modular monolith. HTTP controllers validate and translate requests, transactional services enforce domain rules, and Spring Data JPA repositories persist the model in PostgreSQL.
 
-| API Description      | Endpoint                    | Request Body                                                                                          | Response Status | Response Body                                                                                                        |
-|----------------------|-----------------------------|-------------------------------------------------------------------------------------------------------|-----------------|----------------------------------------------------------------------------------------------------------------------|
-| Get all users        | GET /users                  |                                                                                                       | 200 OK          | `[ { "id": 1, "username": "jdoe", "email": "jdoe@example.com", "fullName": "John Doe", "role": "DEVELOPER" } ]`    |
-| Get user by ID       | GET /users/:userId          |                                                                                                       | 200 OK          | `{ "id": 1, "username": "jdoe", "email": "jdoe@example.com", "fullName": "John Doe", "role": "DEVELOPER" }`        |
-| Create a user        | POST /users                 | `{ "username": "jdoe", "email": "jdoe@example.com", "fullName": "John Doe", "role": "DEVELOPER" }`   | 200 OK          | `{ "id": 1, "username": "jdoe", "email": "jdoe@example.com", "fullName": "John Doe", "role": "DEVELOPER" }`        |
-| Update a user        | POST /users/update/:userId  | `{ "fullName": "Jane Doe", "role": "ADMIN" }`                                                         | 200 OK          |                                                                                                                      |
-| Delete a user        | DELETE /users/:userId       |                                                                                                       | 200 OK          |                                                                                                                      |
----
-### Authentication APIs
-
-| API Description         | Endpoint         | Request Body                                          | Response Status | Response Body |
-|-------------------------|------------------|-------------------------------------------------------|-----------------|---------------|
-| Login (obtain JWT)      | POST /auth/login | `{ "username": "jdoe", "password": "secret" }`       | 200 OK          | `{ "accessToken": "<jwt>", "tokenType": "Bearer", "expiresIn": 3600 }` |
-| Logout (invalidate token) | POST /auth/logout |                                                     | 200 OK          | |
-| Get current user        | GET /auth/me     |    
-
----
-
-### Projects APIs
-
-| API Description       | Endpoint                          | Request Body                                                                   | Response Status | Response Body                                                                                                    |
-|-----------------------|-----------------------------------|--------------------------------------------------------------------------------|-----------------|------------------------------------------------------------------------------------------------------------------|
-| Get all projects      | GET /projects                     |                                                                                | 200 OK          | `[ { "id": 1, "name": "Sample Project", "description": "A sample project", "ownerId": 1 } ]`                   |
-| Get project by ID     | GET /projects/:projectId          |                                                                                | 200 OK          | `{ "id": 1, "name": "Sample Project", "description": "A sample project", "ownerId": 1 }`                       |
-| Create a project      | POST /projects                    | `{ "name": "Sample Project", "description": "A sample project", "ownerId": 1 }` | 200 OK        | `{ "id": 1, "name": "Sample Project", "description": "A sample project", "ownerId": 1 }`                       |
-| Update a project      | PATCH /projects/:projectId        | `{ "name": "Updated Name", "description": "Updated description" }`             | 200 OK          |                                                                                                                  |
-| Soft-delete a project | DELETE /projects/:projectId       |                                                                                | 200 OK          |                                                                                                                  |
-
-
----
-
-### Tickets APIs
-
-| API Description               | Endpoint                                   | Request Body                                                                                                                               | Response Status | Response Body                                                                                                                                                                |
-|-------------------------------|--------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|-----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Get tickets by project        | GET /tickets?projectId=:projectId          |                                                                                                                                                         | 200 OK          | `[ { "id": 1, "title": "Fix login bug", "description": "...", "status": "TODO", "priority": "HIGH", "type": "BUG", "projectId": 1, "assigneeId": 2, "dueDate": "2026-04-01T00:00:00Z", "isOverdue": false } ]` |
-| Get ticket by ID              | GET /tickets/:ticketId                     |                                                                                                                                                         | 200 OK          | `{ "id": 1, "title": "Fix login bug", "description": "...", "status": "TODO", "priority": "HIGH", "type": "BUG", "projectId": 1, "assigneeId": 2, "dueDate": "2026-04-01T00:00:00Z", "isOverdue": false }` |
-| Create a ticket               | POST /tickets                              | `{ "title": "Fix login bug", "description": "...", "status": "TODO", "priority": "HIGH", "type": "BUG", "projectId": 1, "assigneeId": 2, "dueDate": "2026-04-01T00:00:00Z" }` | 200 OK          | `{ "id": 1, "title": "Fix login bug", "description": "...", "status": "TODO", "priority": "HIGH", "type": "BUG", "projectId": 1, "assigneeId": 2, "dueDate": "2026-04-01T00:00:00Z", "isOverdue": false }` |
-| Update a ticket               | PATCH /tickets/:ticketId                   | `{ "title": "...", "description": "...", "status": "IN_PROGRESS", "priority": "MEDIUM", "assigneeId": 3, "dueDate": "2026-04-01T00:00:00Z" }`    | 200 OK          |                                                                                                                                                                                                                      |
-| Soft-delete a ticket          | DELETE /tickets/:ticketId                  |                                                                                                                                                         | 200 OK          |                                                                                                                                                                              |
-| Export tickets to CSV         | GET /tickets/export?projectId=:projectId   |                                                                                                                                            | 200 OK          | CSV file with fields: id, title, description, status, priority, type, assigneeId                                                                                             |
-| Import tickets from CSV       | POST /tickets/import                       | multipart/form-data: `file` (CSV), `projectId` (form field)                                                                               | 200 OK          | `{ "created": 42, "failed": 3, "errors": [...] }`                                                                                                                           |
-
----
-
-### Comments APIs
-
-| API Description          | Endpoint                                          | Request Body                                          | Response Status | Response Body                                                                                                                                                                              |
-|--------------------------|---------------------------------------------------|-------------------------------------------------------|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Get comments for ticket  | GET /tickets/:ticketId/comments                   |                                                       | 200 OK          | `[ { "id": 1, "ticketId": 1, "authorId": 2, "content": "Hello @jdoe!", "mentionedUsers": [{ "id": 1, "username": "jdoe", "fullName": "John Doe" }] } ]`              |
-| Add a comment            | POST /tickets/:ticketId/comments                  | `{ "authorId": 2, "content": "Hello @jdoe!" }`       | 200 OK          | `{ "id": 1, "ticketId": 1, "authorId": 2, "content": "Hello @jdoe!", "mentionedUsers": [{ "id": 1, "username": "jdoe", "fullName": "John Doe" }] }` |
-| Update a comment         | PATCH /tickets/:ticketId/comments/:commentId      | `{ "content": "Updated comment." }`                   | 200 OK          |                                                                                                                                                                                            |
-| Delete a comment         | DELETE /tickets/:ticketId/comments/:commentId     |                                                       | 200 OK          |                                                                                                                                                                                            |
-
----
-
-### Audit Log APIs
-
-| API Description  | Endpoint        | Query Params                                          | Response Status | Response Body                                                                                                                        |
-|------------------|-----------------|-------------------------------------------------------|-----------------|--------------------------------------------------------------------------------------------------------------------------------------|
-| Get audit logs   | GET /audit-logs | Optional: `entityType`, `entityId`, `action`, `actor` | 200 OK          | `[ { "id": 1, "action": "CREATE", "entityType": "TICKET", "entityId": 5, "performedBy": 2, "actor": "USER", "timestamp": "2026-03-01T10:00:00Z" } ]` |
-
----
-
-### Ticket Dependencies APIs
-
-| API Description     | Endpoint                                            | Request Body          | Response Status | Response Body                                                             |
-|---------------------|-----------------------------------------------------|-----------------------|-----------------|---------------------------------------------------------------------------|
-| Add a dependency    | POST /tickets/:ticketId/dependencies                | `{ "blockedBy": 42 }` | 200 OK          |                                                                           |
-| List dependencies   | GET /tickets/:ticketId/dependencies                 |                       | 200 OK          | `[ { "id": 42, "title": "Blocking ticket", "status": "IN_PROGRESS" } ]`  |
-| Remove a dependency | DELETE /tickets/:ticketId/dependencies/:blockerId   |                       | 200 OK          |                                                                           |
-
----
-
-### Attachments APIs
-
-| API Description   | Endpoint                                              | Request Body                | Response Status | Response Body                                                                           |
-|-------------------|-------------------------------------------------------|-----------------------------|-----------------|-----------------------------------------------------------------------------------------|
-| Upload attachment | POST /tickets/:ticketId/attachments                   | multipart/form-data: `file` | 200 OK          | `{ "id": 1, "ticketId": 1, "filename": "screenshot.png", "contentType": "image/png" }` |
-| Delete attachment | DELETE /tickets/:ticketId/attachments/:attachmentId   |                             | 200 OK          |                                                                                         |
-
----
-
-### Soft Delete APIs
-
-Tickets and projects support **soft delete** only — deleted records are hidden from standard responses but can be restored by `ADMIN` users. Permanent (hard) deletion is not exposed through the API.
-
-#### Tickets
-
-| API Description                  | Endpoint                                        | Request Body | Response Status | Response Body                                                                                                        |
-|----------------------------------|-------------------------------------------------|--------------|-----------------|----------------------------------------------------------------------------------------------------------------------|
-| List soft-deleted tickets        | GET /tickets/deleted?projectId=:projectId       |              | 200 OK          | `[ { "id": 1, "title": "...", "status": "TODO", "priority": "HIGH", "type": "BUG", "projectId": 1 } ]`             |
-| Restore a soft-deleted ticket    | POST /tickets/:ticketId/restore                 |              | 200 OK          |                                                                                                                      |
-
-#### Projects
-
-| API Description                  | Endpoint                          | Request Body | Response Status | Response Body                                                               |
-|----------------------------------|-----------------------------------|--------------|-----------------|-----------------------------------------------------------------------------|
-| List soft-deleted projects       | GET /projects/deleted             |              | 200 OK          | `[ { "id": 1, "name": "Sample Project", "description": "...", "ownerId": 1 } ]` |
-| Restore a soft-deleted project   | POST /projects/:projectId/restore |              | 200 OK          |                                                                             |
-
----
-
-### Mentions APIs
-
-| API Description              | Endpoint                         | Query Params                  | Response Status | Response Body                                                                                                                                                     |
-|------------------------------|----------------------------------|-------------------------------|-----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Get mentions for a user      | GET /users/:userId/mentions      | Optional: `page`, `pageSize`  | 200 OK          | `{ "data": [ { "id": 1, "ticketId": 3, "authorId": 2, "content": "Hey @jdoe ...", "mentionedUsers": [{ "id": 1, "username": "jdoe", "fullName": "John Doe" }] } ], "total": 10, "page": 1 }` |
-
----
-
-### Workload API
-
-| API Description             | Endpoint                              | Response Status | Response Body                                                                                             |
-|-----------------------------|---------------------------------------|-----------------|-----------------------------------------------------------------------------------------------------------|
-| Get project workload        | GET /projects/:projectId/workload     | 200 OK          | `[ { "userId": 1, "username": "jdoe", "openTicketCount": 3 }, { "userId": 2, "username": "asmith", "openTicketCount": 5 } ]` |
-
----
-
-## Jump Start
-For your convenience, `compose.yml` includes a PostgreSQL DB and the app is already configured to connect to it.
-
-Document your exact setup, build, and run steps in `run.md` (install dependencies, start the database, build the project, run the application, and run the tests).
-
-## Description
-
-[Spring Boot](https://spring.io/projects/spring-boot) Java starter project. Supports **Java 21** or **Java 25** with **Spring Boot 3** or **Spring Boot 4**.
-
-## Build
-
-```bash
-# using Maven wrapper
-$ ./mvnw clean package
+```mermaid
+flowchart LR
+    Client --> Security[JWT security filter]
+    Security --> Controllers[Feature controllers]
+    Controllers --> Services[Transactional feature services]
+    Scheduler[Escalation scheduler] --> Services
+    Services --> Repositories[Spring Data JPA repositories]
+    Repositories --> PostgreSQL[(PostgreSQL)]
+    Services --> Storage[Local attachment storage]
+    Services --> Audit[Audit service]
+    Audit --> PostgreSQL
 ```
 
-## Running the app
+The main feature packages are:
 
-```bash
-# run with Maven
-$ ./mvnw spring-boot:run
+- `auth` for JWT authentication, password encoding, and security configuration;
+- `user` for users, roles, and first-admin bootstrap;
+- `project` for projects and ownership;
+- `ticket` for tickets, dependencies, workload assignment, CSV workflows, and scheduled escalation;
+- `comment` and `mention` for comments and persisted user mentions;
+- `attachment` for metadata and filesystem-backed content; and
+- `audit` for user- and system-originated activity records.
 
-# run the packaged jar
-$ java -jar target/issueflow-*.jar
+For a more detailed discussion of boundaries and tradeoffs, see [docs/architecture.md](docs/architecture.md).
+
+## Domain rules
+
+- Tickets are created in `TODO`, including tickets created through CSV import.
+- Status may remain unchanged or advance, but cannot move backward; `DONE` tickets cannot be changed further.
+- A ticket cannot be completed while one of its direct blockers is not `DONE`.
+- Dependencies must connect different tickets in the same project and cannot be duplicated.
+- Explicit assignees must have the `DEVELOPER` role.
+- Comment authorship and attachment uploader identity are derived from the authenticated principal, not client-supplied user IDs.
+- Public registration cannot create administrators. Creating an `ADMIN` through the API requires an authenticated administrator.
+
+## Security
+
+IssueFlow uses stateless JWT bearer authentication and BCrypt password hashing. Public access is limited to login and developer registration; other endpoints require authentication, with administrative endpoints protected by role checks.
+
+The first administrator can be provisioned at startup through an opt-in bootstrap mechanism. It is disabled unless all three environment variables are provided:
+
+```text
+ISSUEFLOW_BOOTSTRAP_ADMIN_USERNAME
+ISSUEFLOW_BOOTSTRAP_ADMIN_EMAIL
+ISSUEFLOW_BOOTSTRAP_ADMIN_PASSWORD
 ```
 
-## Test
+Bootstrap creation occurs only when no administrator exists. It validates the supplied values, hashes the password through the normal password encoder, and is idempotent across restarts. Incomplete configuration creates no user.
+
+IssueFlow currently uses role-based endpoint authorization rather than project-level ACLs. Authenticated users can access general project and ticket operations; `ADMIN` is required for administrative user operations, audit-log access, and restoration workflows.
+
+## Technology
+
+- Java 21
+- Spring Boot 3.4.2
+- Spring Security and stateless JWT authentication
+- Spring Data JPA / Hibernate
+- PostgreSQL for application persistence
+- JJWT 0.12.6
+- Apache Commons CSV 1.10.0
+- Maven Wrapper
+- JUnit 5, Spring Boot Test, Mockito, and H2 for tests
+
+## Running locally
+
+Requirements: Java 21 and Docker with Compose support.
+
+Start PostgreSQL:
 
 ```bash
-# run all tests (Maven)
-$ ./mvnw test
+docker compose up -d postgres
 ```
 
-## AI & Agents
+For a first local run, optionally configure a bootstrap administrator and override the local JWT signing secret:
 
-We encourage you to use AI during the process. Document how you used the agent and add all relevant files (skills, instructions, plan, etc.).
+```bash
+export JWT_SECRET='<a-random-secret-of-at-least-32-bytes>'
+export ISSUEFLOW_BOOTSTRAP_ADMIN_USERNAME='local-admin'
+export ISSUEFLOW_BOOTSTRAP_ADMIN_EMAIL='admin@example.test'
+export ISSUEFLOW_BOOTSTRAP_ADMIN_PASSWORD='<a-strong-local-password>'
+```
 
-Add the main and relevant prompts that show your interaction with the agents in a `prompts.md` file.
+Start the application:
 
----
-## Additional Documentation
+```bash
+./mvnw spring-boot:run
+```
 
-This repository also includes:
+The API listens on `http://localhost:8080`. The Compose database uses development-only credentials that match `application.yaml`; override the datasource and JWT settings for any non-local environment.
 
-- `run.md` - exact setup, build, run, test, and smoke-test instructions.
-- `prompts.md` - AI usage summary and representative prompts.
-- `docs/requirements-traceability.md` - implementation status for the assignment requirements.
-- `docs/architecture-notes.md` - key architecture decisions, assumptions, and tradeoffs.
+## Tests
 
-The API table in this README was used as the implementation contract.
+Run the full suite with:
 
----
+```bash
+./mvnw test
+```
 
+The current suite combines focused service tests with Spring Boot integration tests. Integration tests use H2 in PostgreSQL compatibility mode, which keeps them fast and self-contained but does not replace testing against a real PostgreSQL instance.
 
-## License
+## Example workflow
 
-This project is [MIT licensed](LICENSE).
+After provisioning an administrator, a typical API workflow is:
+
+1. Authenticate with `POST /auth/login` and use the returned token as `Authorization: Bearer <token>`.
+2. Create developer accounts with `POST /users` and a project with `POST /projects`.
+3. Create two `TODO` tickets with `POST /tickets`, assigning them to developers or requesting automatic assignment.
+4. Make one ticket block the other with `POST /tickets/{ticketId}/dependencies` and `{"blockedBy": <blockerTicketId>}`.
+5. Attempting to move the blocked ticket to `DONE` fails until the blocker has been completed.
+6. Complete the blocker, then advance the dependent ticket to `DONE`.
+
+## Current limitations and engineering roadmap
+
+The next engineering steps are deliberately focused rather than feature-driven:
+
+- exercise persistence behavior with PostgreSQL-backed integration tests;
+- replace schema auto-update with versioned database migrations;
+- prevent transitive dependency cycles, beyond the current direct-dependency checks; and
+- expose an explicit HTTP optimistic-concurrency contract using entity versions.

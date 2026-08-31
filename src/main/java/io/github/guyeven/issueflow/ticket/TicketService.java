@@ -1,0 +1,227 @@
+package io.github.guyeven.issueflow.ticket;
+
+import io.github.guyeven.issueflow.common.error.BadRequestException;
+import io.github.guyeven.issueflow.common.error.NotFoundException;
+import io.github.guyeven.issueflow.project.Project;
+import io.github.guyeven.issueflow.project.ProjectService;
+import io.github.guyeven.issueflow.user.User;
+import io.github.guyeven.issueflow.user.UserService;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import io.github.guyeven.issueflow.audit.AuditLogService;
+import io.github.guyeven.issueflow.audit.AuditAction;
+import io.github.guyeven.issueflow.audit.AuditEntityType;
+import io.github.guyeven.issueflow.ticket.TicketDependencyRepository;
+import io.github.guyeven.issueflow.project.WorkloadService;
+import io.github.guyeven.issueflow.user.UserRole;
+
+import java.util.List;
+
+@Service
+public class TicketService {
+
+    private final TicketRepository ticketRepository;
+    private final ProjectService projectService;
+    private final UserService userService;
+    private final AuditLogService auditLogService;
+    private final TicketDependencyRepository ticketDependencyRepository;
+    private final WorkloadService workloadService;
+
+    public TicketService(
+            TicketRepository ticketRepository,
+            ProjectService projectService,
+            UserService userService,
+            AuditLogService auditLogService,
+            TicketDependencyRepository ticketDependencyRepository,
+            WorkloadService workloadService
+
+    ) {
+        this.ticketRepository = ticketRepository;
+        this.projectService = projectService;
+        this.userService = userService;
+        this.auditLogService = auditLogService;
+        this.ticketDependencyRepository = ticketDependencyRepository;
+        this.workloadService = workloadService;
+    }
+
+    @Transactional
+    public TicketResponse createTicket(CreateTicketRequest request) {
+        if (request.status() != TicketStatus.TODO) {
+            throw new BadRequestException("New tickets must start in TODO");
+        }
+        Project project = projectService.findActiveProjectEntity(request.projectId());
+
+        User assignee = null;
+        boolean autoAssigned = false;
+
+        if (request.assigneeId() != null) {
+            assignee = userService.findUserEntity(request.assigneeId());
+            validateAssignee(assignee);
+        } else {
+            assignee = workloadService.selectLeastLoadedDeveloper(project);
+            autoAssigned = assignee != null;
+        }
+
+        Ticket ticket = new Ticket();
+        ticket.setTitle(request.title());
+        ticket.setDescription(request.description());
+        ticket.setStatus(request.status());
+        ticket.setPriority(request.priority());
+        ticket.setType(request.type());
+        ticket.setProject(project);
+        ticket.setAssignee(assignee);
+        ticket.setDueDate(request.dueDate());
+        Ticket saved = ticketRepository.saveAndFlush(ticket);
+
+        auditLogService.recordCurrentUserAction(
+                AuditAction.CREATE,
+                AuditEntityType.TICKET,
+                saved.getId(),
+                "Ticket created"
+        );
+        if (autoAssigned) {
+            workloadService.recordAutoAssignment(saved.getId(), assignee);
+        }
+        return TicketResponse.from(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public TicketResponse getTicket(Long id) {
+        return TicketResponse.from(findActiveTicketEntity(id));
+    }
+
+    @Transactional(readOnly = true)
+    public List<TicketResponse> getTicketsByProject(Long projectId) {
+        projectService.findActiveProjectEntity(projectId);
+
+        return ticketRepository.findByProjectIdAndDeletedAtIsNull(projectId)
+                .stream()
+                .map(TicketResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public TicketResponse updateTicket(Long id, UpdateTicketRequest request) {
+        Ticket ticket = findActiveTicketEntity(id);
+
+        if (ticket.isDone()) {
+            throw new BadRequestException("Ticket cannot be updated once it is DONE");
+        }
+
+        if (request.title() != null) {
+            if (request.title().isBlank()) {
+                throw new BadRequestException("Ticket title cannot be blank");
+            }
+            ticket.setTitle(request.title());
+        }
+
+        if (request.description() != null) {
+            ticket.setDescription(request.description());
+        }
+
+        if (request.status() != null) {
+            validateStatusTransition(ticket.getStatus(), request.status());
+
+            if (request.status() == TicketStatus.DONE &&
+                    ticketDependencyRepository.existsByTicketIdAndBlockedByStatusNot(ticket.getId(), TicketStatus.DONE)) {
+                throw new BadRequestException("Ticket cannot transition to DONE while it has unresolved blockers");
+            }
+
+            ticket.setStatus(request.status());
+        }
+
+        if (request.priority() != null) {
+            if (request.priority() != ticket.getPriority()) {
+                ticket.setOverdue(false);
+            }
+            ticket.setPriority(request.priority());
+        }
+
+        if (request.assigneeId() != null) {
+            User assignee = userService.findUserEntity(request.assigneeId());
+            validateAssignee(assignee);
+            ticket.setAssignee(assignee);
+        }
+
+        if (request.dueDate() != null) {
+            ticket.setDueDate(request.dueDate());
+        }
+
+        Ticket saved = ticketRepository.saveAndFlush(ticket);
+        auditLogService.recordCurrentUserAction(
+                AuditAction.UPDATE,
+                AuditEntityType.TICKET,
+                saved.getId(),
+                "Ticket updated"
+        );
+        return TicketResponse.from(saved);
+    }
+
+    private void validateAssignee(User assignee) {
+        if (assignee.getRole() != UserRole.DEVELOPER) {
+            throw new BadRequestException("Tickets can only be assigned to developers");
+        }
+    }
+
+    @Transactional
+    public void deleteTicket(Long id) {
+        Ticket ticket = findActiveTicketEntity(id);
+        ticket.softDelete();
+        auditLogService.recordCurrentUserAction(
+                AuditAction.DELETE,
+                AuditEntityType.TICKET,
+                ticket.getId(),
+                "Ticket soft-deleted"
+        );
+    }
+
+    public Ticket findActiveTicketEntity(Long id) {
+        Ticket ticket = ticketRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Ticket not found: " + id));
+
+        if (ticket.isDeleted()) {
+            throw new NotFoundException("Ticket not found: " + id);
+        }
+
+        return ticket;
+    }
+
+    private void validateStatusTransition(TicketStatus current, TicketStatus next) {
+        if (!current.canTransitionTo(next)) {
+            throw new BadRequestException(
+                    "Invalid status transition from " + current + " to " + next
+            );
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public List<TicketResponse> getDeletedTicketsByProject(Long projectId) {
+        projectService.findActiveProjectEntity(projectId);
+
+        return ticketRepository.findByProjectIdAndDeletedAtIsNotNull(projectId)
+                .stream()
+                .map(TicketResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public TicketResponse restoreTicket(Long id) {
+        Ticket ticket = ticketRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Ticket not found: " + id));
+
+        if (!ticket.isDeleted()) {
+            return TicketResponse.from(ticket);
+        }
+
+        ticket.restore();
+        Ticket saved = ticketRepository.saveAndFlush(ticket);
+
+        auditLogService.recordCurrentUserAction(
+                AuditAction.RESTORE,
+                AuditEntityType.TICKET,
+                saved.getId(),
+                "Ticket restored"
+        );
+        return TicketResponse.from(saved);
+    }
+}
