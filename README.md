@@ -22,7 +22,7 @@ The API uses JWT authentication. Administrative operations, including user admin
 ## Engineering highlights
 
 - **Explicit lifecycle invariants.** New tickets begin in `TODO`; status changes move forward through `TODO`, `IN_PROGRESS`, `IN_REVIEW`, and `DONE`; and completed tickets are terminal.
-- **Dependency-aware completion.** A ticket cannot move to `DONE` while any of its direct blockers is unresolved. Self-dependencies, duplicate dependencies, and cross-project dependencies are rejected.
+- **Project-scoped dependency DAG.** A ticket cannot move to `DONE` while any direct blocker is unresolved. Self-dependencies, duplicates, cross-project edges, and direct or transitive cycles are rejected. Cycle checks load the project graph in one query and dependency mutations serialize on the PostgreSQL project row.
 - **Optimistic-locking groundwork.** Mutable ticket and comment entities use JPA `@Version`. The persistence layer can detect conflicting writes, although the API does not yet expose versions through an HTTP concurrency contract.
 - **Transactional service boundaries.** Domain mutations and their audit entries share the same transaction, so a rolled-back mutation does not leave behind a successful domain audit record. Authentication security events use an explicitly separate transaction.
 - **Actor-aware auditing.** `USER` identifies API-originated activity and records the authenticated user ID when one exists; `SYSTEM` identifies automated activity such as scheduled escalation.
@@ -66,7 +66,7 @@ For a more detailed discussion of boundaries and tradeoffs, see [docs/architectu
 - Tickets are created in `TODO`, including tickets created through CSV import.
 - Status may remain unchanged or advance, but cannot move backward; `DONE` tickets cannot be changed further.
 - A ticket cannot be completed while one of its direct blockers is not `DONE`.
-- Dependencies must connect different tickets in the same project and cannot be duplicated.
+- Dependencies must connect different tickets in the same project, cannot be duplicated, and cannot create a direct or transitive cycle. Soft-deleted tickets remain part of dependency and cycle semantics until an edge is explicitly removed.
 - Explicit assignees must have the `DEVELOPER` role.
 - Comment authorship and attachment uploader identity are derived from the authenticated principal, not client-supplied user IDs.
 - Public registration cannot create administrators. Creating an `ADMIN` through the API requires an authenticated administrator.
@@ -152,5 +152,4 @@ After provisioning an administrator, a typical API workflow is:
 
 The next engineering steps are deliberately focused rather than feature-driven:
 
-- prevent transitive dependency cycles, beyond the current direct-dependency checks; and
 - expose an explicit HTTP optimistic-concurrency contract using entity versions.

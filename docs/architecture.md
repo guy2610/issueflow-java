@@ -59,7 +59,11 @@ JPA `@Version` fields on tickets and comments provide persistence-level optimist
 
 A dependency states that one ticket is blocked by another. Both tickets must belong to the same project; self-dependencies and duplicate edges are rejected. Before a ticket enters `DONE`, each direct blocker must already be complete.
 
-The current implementation validates direct relationships only. It does not traverse the dependency structure to reject transitive cycles, so it should not be treated as a complete graph-consistency engine.
+Dependencies form a project-scoped directed acyclic graph. For an edge `A -> B`, A is blocked by B. Before adding that edge, the service loads the project's dependency pairs in one query and follows blocker edges from B; reaching A would close a cycle, so the mutation is rejected. The traversal is iterative and database-independent.
+
+Dependency additions and removals acquire a pessimistic lock on the owning PostgreSQL project row. This serializes graph mutations within a project so a cycle decision observes the previously committed mutation rather than a stale concurrent snapshot. The guarantee applies across application instances that use the same PostgreSQL database and mutation path; it is not a distributed lock outside the database.
+
+Soft deletion does not rewrite the graph. Deleted tickets remain in cycle analysis, and an unfinished deleted blocker continues to prevent completion. Restoring a ticket therefore restores access to the same relationships. Removing a dependency explicitly is how an obsolete blocker is disconnected, including when the blocker itself is deleted. A soft-deleted project retains its graph but rejects dependency mutations.
 
 ## Audit semantics
 
@@ -83,7 +87,6 @@ This design is suitable for a single application instance and keeps the database
 
 ## Current limitations
 
-- Dependency validation does not prevent transitive cycles.
 - Entity versions are not surfaced through an HTTP conditional-update contract.
 - JWT logout state and attachment content are local to one application instance.
 - Authorization is role-based and does not yet restrict resources by project membership.

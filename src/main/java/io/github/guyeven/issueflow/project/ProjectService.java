@@ -105,6 +105,18 @@ public class ProjectService {
 
         return project;
     }
+
+    public Project lockActiveProjectForDependencyMutation(Long id) {
+        Project project = projectRepository.findByIdForDependencyMutation(id)
+                .orElseThrow(() -> new NotFoundException("Project not found: " + id));
+
+        if (project.isDeleted()) {
+            throw new NotFoundException("Project not found: " + id);
+        }
+
+        return project;
+    }
+
     @Transactional(readOnly = true)
     public List<ProjectResponse> getDeletedProjects() {
         return projectRepository.findByDeletedAtIsNotNull()
