@@ -10,12 +10,23 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.jdbc.Sql;
+import org.springframework.test.context.jdbc.SqlConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(PasswordConfig.class)
+@Sql(
+        statements = """
+                TRUNCATE TABLE
+                    mentions, attachments, comments, ticket_dependencies,
+                    tickets, projects, audit_logs, users
+                RESTART IDENTITY CASCADE;
+                """,
+        config = @SqlConfig(transactionMode = SqlConfig.TransactionMode.ISOLATED)
+)
 class BootstrapAdminInitializerTests extends PostgresIntegrationTest {
 
     private static final String BOOTSTRAP_PASSWORD = "bootstrap-password";
