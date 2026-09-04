@@ -1,36 +1,36 @@
 # IssueFlow
 
+[![CI](https://github.com/guy2610/issueflow-java/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/guy2610/issueflow-java/actions/workflows/ci.yml)
+
 IssueFlow is a backend project and ticket management system built with Java 21 and Spring Boot. It focuses on enforceable workflow rules, dependency-aware ticket completion, role-aware operations, workload-based assignment, auditing, bulk CSV workflows, and attachment handling.
-
-## What IssueFlow does
-
-IssueFlow provides a stateless HTTP API for:
-
-- managing users with `ADMIN` and `DEVELOPER` roles;
-- creating projects and tracking their owners;
-- managing tickets through a forward-only lifecycle;
-- defining direct ticket dependencies and preventing completion while blockers remain unresolved;
-- assigning tickets explicitly or selecting a developer based on project workload;
-- adding comments and resolving `@username` mentions;
-- escalating overdue ticket priority on a schedule;
-- recording user- and system-initiated audit events;
-- importing and exporting tickets as CSV; and
-- storing attachment metadata in PostgreSQL while keeping file content on the local filesystem.
-
-The API uses JWT authentication. Administrative operations, including user administration, audit-log access, and restoration of soft-deleted records, require the `ADMIN` role.
 
 ## Engineering highlights
 
-- **Explicit lifecycle invariants.** New tickets begin in `TODO`; status changes move forward through `TODO`, `IN_PROGRESS`, `IN_REVIEW`, and `DONE`; and completed tickets are terminal.
-- **Project-scoped dependency DAG.** A ticket cannot move to `DONE` while any direct blocker is unresolved. Self-dependencies, duplicates, cross-project edges, and direct or transitive cycles are rejected. Cycle checks load the project graph in one query and dependency mutations serialize on the PostgreSQL project row.
+- **Explicit PostgreSQL schema ownership.** Flyway versioned migrations create and evolve the schema, while Hibernate validates mappings without creating or updating database objects.
+- **Production-database integration testing.** PostgreSQL 16 Testcontainers tests exercise migrations, constraints, foreign keys, optimistic locking, and concurrent dependency mutations; H2 is not used.
+- **Project-scoped dependency DAG.** A ticket cannot move to `DONE` while any direct blocker is unresolved. Self-dependencies, duplicates, cross-project edges, and direct or transitive cycles are rejected through one-query graph loading and iterative traversal.
+- **Concurrency-safe graph mutation.** Dependency additions and removals serialize on the owning PostgreSQL project row, so concurrent application mutations cannot independently approve edges that form a cycle.
+- **Transactional workflow and security invariants.** Forward-only ticket transitions, authenticated actor identity, role-restricted administration, and domain audit records are enforced at service transaction boundaries.
 - **Optimistic-locking groundwork.** Mutable ticket and comment entities use JPA `@Version`. The persistence layer can detect conflicting writes, although the API does not yet expose versions through an HTTP concurrency contract.
-- **Transactional service boundaries.** Domain mutations and their audit entries share the same transaction, so a rolled-back mutation does not leave behind a successful domain audit record. Authentication security events use an explicitly separate transaction.
 - **Actor-aware auditing.** `USER` identifies API-originated activity and records the authenticated user ID when one exists; `SYSTEM` identifies automated activity such as scheduled escalation.
 - **Workload-aware assignment.** Automatic assignment selects the developer with the fewest active tickets in the project, with deterministic tie-breaking.
 - **Scheduled escalation.** A scheduler raises the priority of overdue, incomplete tickets one level at a time and marks already-critical tickets as overdue.
 - **Row-oriented CSV processing.** Apache Commons CSV is used to parse imports and produce row-level success or validation results. The current import runs within one service transaction; it is not an independently committed transaction per row.
 - **Separated attachment storage.** Attachment metadata is persisted through JPA, while content is stored behind a filesystem storage service. This keeps binary data out of the relational model while making the storage tradeoff explicit.
 - **Package-by-feature modular monolith.** Authentication, users, projects, tickets, comments, mentions, attachments, and auditing are organized as cohesive feature packages in one deployable Spring Boot application.
+
+## What IssueFlow does
+
+IssueFlow provides a stateless, JWT-authenticated HTTP API for:
+
+- managing developer and administrator accounts, projects, and ownership;
+- creating, assigning, updating, soft-deleting, and restoring workflow-controlled tickets;
+- defining acyclic ticket dependencies and preventing completion while blockers remain unresolved;
+- adding comments and `@username` mentions, attachments, and user/system audit records;
+- importing and exporting tickets as CSV; and
+- automatically assigning work and escalating overdue tickets.
+
+Administrative operations, including user administration, audit-log access, and restoration of soft-deleted records, require the `ADMIN` role.
 
 ## Architecture
 
