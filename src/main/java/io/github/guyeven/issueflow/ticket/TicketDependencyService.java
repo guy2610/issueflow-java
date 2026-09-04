@@ -6,6 +6,7 @@ import io.github.guyeven.issueflow.audit.AuditLogService;
 import io.github.guyeven.issueflow.common.error.BadRequestException;
 import io.github.guyeven.issueflow.common.error.ConflictException;
 import io.github.guyeven.issueflow.common.error.NotFoundException;
+import io.github.guyeven.issueflow.project.ProjectService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,15 +17,21 @@ public class TicketDependencyService {
 
     private final TicketDependencyRepository dependencyRepository;
     private final TicketService ticketService;
+    private final ProjectService projectService;
+    private final TicketDependencyGraph dependencyGraph;
     private final AuditLogService auditLogService;
 
     public TicketDependencyService(
             TicketDependencyRepository dependencyRepository,
             TicketService ticketService,
+            ProjectService projectService,
+            TicketDependencyGraph dependencyGraph,
             AuditLogService auditLogService
     ) {
         this.dependencyRepository = dependencyRepository;
         this.ticketService = ticketService;
+        this.projectService = projectService;
+        this.dependencyGraph = dependencyGraph;
         this.auditLogService = auditLogService;
     }
 
@@ -41,8 +48,16 @@ public class TicketDependencyService {
             throw new BadRequestException("Both tickets must belong to the same project");
         }
 
+        Long projectId = ticket.getProject().getId();
+        projectService.lockActiveProjectForDependencyMutation(projectId);
+
         if (dependencyRepository.existsByTicketIdAndBlockedById(ticketId, blocker.getId())) {
             throw new ConflictException("Dependency already exists");
+        }
+
+        List<TicketDependencyEdge> existingEdges = dependencyRepository.findGraphEdgesByProjectId(projectId);
+        if (dependencyGraph.wouldCreateCycle(existingEdges, ticketId, blocker.getId())) {
+            throw new ConflictException("Dependency would create a cycle");
         }
 
         TicketDependency dependency = new TicketDependency();
@@ -73,6 +88,9 @@ public class TicketDependencyService {
 
     @Transactional
     public void removeDependency(Long ticketId, Long blockerId) {
+        Ticket ticket = ticketService.findActiveTicketEntity(ticketId);
+        projectService.lockActiveProjectForDependencyMutation(ticket.getProject().getId());
+
         TicketDependency dependency = dependencyRepository
                 .findByTicketIdAndBlockedById(ticketId, blockerId)
                 .orElseThrow(() -> new NotFoundException("Dependency not found"));
