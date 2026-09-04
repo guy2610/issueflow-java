@@ -25,6 +25,8 @@ Comments belong to tickets, with mentions persisted as separate records after us
 
 These are logical boundaries inside one persistence model, not independently deployed services.
 
+PostgreSQL 16 is the persistence target. Flyway owns the versioned schema, and Hibernate validates the entity mappings against that schema rather than creating or updating it. Integration tests use PostgreSQL Testcontainers so migrations, relational constraints, and locking behavior run against the production database engine; H2 is not used.
+
 ## Transaction boundaries
 
 Mutation services use Spring transactions as the consistency boundary. Validation, entity changes, and normal domain audit records participate in the same transaction. If the business mutation fails, its successful domain audit entry is rolled back with it.
@@ -81,8 +83,6 @@ This design is suitable for a single application instance and keeps the database
 
 ## Current limitations
 
-- Integration tests use H2 in PostgreSQL compatibility mode rather than a real PostgreSQL instance.
-- Hibernate schema auto-update is used instead of versioned migrations.
 - Dependency validation does not prevent transitive cycles.
 - Entity versions are not surfaced through an HTTP conditional-update contract.
 - JWT logout state and attachment content are local to one application instance.

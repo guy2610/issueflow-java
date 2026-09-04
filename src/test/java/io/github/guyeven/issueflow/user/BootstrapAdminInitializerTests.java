@@ -1,19 +1,22 @@
 package io.github.guyeven.issueflow.user;
 
+import io.github.guyeven.issueflow.PostgresIntegrationTest;
 import io.github.guyeven.issueflow.auth.PasswordConfig;
 import jakarta.validation.Validator;
 import jakarta.validation.Validation;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(PasswordConfig.class)
-class BootstrapAdminInitializerTests {
+class BootstrapAdminInitializerTests extends PostgresIntegrationTest {
 
     private static final String BOOTSTRAP_PASSWORD = "bootstrap-password";
 

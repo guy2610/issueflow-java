@@ -38,7 +38,7 @@ public class Attachment {
     @Column(name = "size_bytes", nullable = false)
     private long sizeBytes;
 
-    @Column(name = "storage_path", nullable = false)
+    @Column(name = "storage_path", nullable = false, length = 1024)
     private String storagePath;
 
     @Column(name = "created_at", nullable = false, updatable = false)

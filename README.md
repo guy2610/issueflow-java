@@ -90,14 +90,15 @@ IssueFlow currently uses role-based endpoint authorization rather than project-l
 ## Technology
 
 - Java 21
-- Spring Boot 3.4.2
+- Spring Boot 3.4.13
 - Spring Security and stateless JWT authentication
 - Spring Data JPA / Hibernate
-- PostgreSQL for application persistence
+- PostgreSQL 16 for application persistence
+- Flyway versioned database migrations with Hibernate schema validation
 - JJWT 0.12.6
 - Apache Commons CSV 1.10.0
 - Maven Wrapper
-- JUnit 5, Spring Boot Test, Mockito, and H2 for tests
+- JUnit 5, Spring Boot Test, Mockito, and PostgreSQL Testcontainers for tests
 
 ## Running locally
 
@@ -134,7 +135,7 @@ Run the full suite with:
 ./mvnw test
 ```
 
-The current suite combines focused service tests with Spring Boot integration tests. Integration tests use H2 in PostgreSQL compatibility mode, which keeps them fast and self-contained but does not replace testing against a real PostgreSQL instance.
+The current suite combines database-free domain tests with PostgreSQL 16 Testcontainers integration tests. Flyway creates each empty integration database before Hibernate validates the schema, and focused tests cover PostgreSQL constraints, foreign-key behavior, and optimistic locking. H2 is not used.
 
 ## Example workflow
 
@@ -151,7 +152,5 @@ After provisioning an administrator, a typical API workflow is:
 
 The next engineering steps are deliberately focused rather than feature-driven:
 
-- exercise persistence behavior with PostgreSQL-backed integration tests;
-- replace schema auto-update with versioned database migrations;
 - prevent transitive dependency cycles, beyond the current direct-dependency checks; and
 - expose an explicit HTTP optimistic-concurrency contract using entity versions.

@@ -3,6 +3,7 @@ package io.github.guyeven.issueflow;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -11,6 +12,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.util.FileSystemUtils;
 import io.github.guyeven.issueflow.audit.AuditAction;
 import io.github.guyeven.issueflow.audit.AuditEntityType;
 import io.github.guyeven.issueflow.audit.AuditLogRepository;
@@ -22,6 +25,7 @@ import io.github.guyeven.issueflow.user.UserRole;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +46,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.attachments.storage-dir=target/test-uploads"
 })
 @AutoConfigureMockMvc
-class IssueFlowApiIntegrationTests {
+class IssueFlowApiIntegrationTests extends PostgresIntegrationTest {
 
     private static final String TEST_PASSWORD = "portfolio-pass";
 
@@ -69,6 +73,26 @@ class IssueFlowApiIntegrationTests {
 
     @Autowired
     private PlatformTransactionManager transactionManager;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @BeforeEach
+    void resetPersistentState() throws Exception {
+        jdbcTemplate.execute("""
+                TRUNCATE TABLE
+                    mentions,
+                    attachments,
+                    comments,
+                    ticket_dependencies,
+                    tickets,
+                    projects,
+                    audit_logs,
+                    users
+                RESTART IDENTITY CASCADE
+                """);
+        FileSystemUtils.deleteRecursively(Path.of("target/test-uploads"));
+    }
 
     @Test
     void authFlowAllowsLoginAndMe() throws Exception {
