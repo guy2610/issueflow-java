@@ -56,7 +56,7 @@ public class TicketCsvService {
         this.auditLogService = auditLogService;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public String exportTickets(Long projectId) {
         projectService.findActiveProjectEntity(projectId);
 

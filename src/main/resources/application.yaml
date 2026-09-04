@@ -14,10 +14,10 @@ spring:
     database: POSTGRESQL
     show-sql: true
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
   sql:
     init:
-      mode: always
+      mode: never
   servlet:
     multipart:
       max-file-size: 10MB
